@@ -1,0 +1,42 @@
+dataset_type: celeba
+
+name: baseline-joint-it-local-${dataset_type}
+data_root: /Users/justinbarry/projects/data/
+# data_root: /Users/justinbarry/projects/flickr30k_entities
+env: local
+
+
+n_epochs: 10
+
+image_size: 128
+batch_size: 8
+normalize_shape: 0.5
+
+num_channels: 4
+latent_dims: 128
+latent_channels: 4
+num_groups: 32
+
+num_workers: 4
+
+artifact_name: jbarry-team/${project}/${name}-best-model:latest
+download_data: False
+# wandb_mode: disabled
+wandb_mode: online
+
+save_model: False
+test_model: True
+train_model: True
+
+compile: False
+do_small_sample: True
+sample_size_k: 8
+
+summary: False
+
+inference_peek_num: 1
+local_visualization: True
+write_inference_samples: True
+
+do_round_trip: False
+do_decode_latent: False

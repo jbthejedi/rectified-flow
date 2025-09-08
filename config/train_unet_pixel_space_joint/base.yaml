@@ -1,0 +1,12 @@
+
+seed: 1337
+project: rf-joint
+p_dropout: 0.1
+p_uncond: 0.15
+
+lr: 3e-4
+
+percep_weight: 1.0
+
+model_name: unet-joint-sa-film
+name: ${env_name}-${model_name}-pixel-img32-${dataset_type}

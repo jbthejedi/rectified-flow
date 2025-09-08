@@ -1,0 +1,17 @@
+
+seed: 1337
+project: rf-joint
+p_dropout: 0.1
+p_train_len: 0.95
+
+adapter_lr: 3e-4
+backbone_lr: 3e-5
+
+kl_clip: 1.0
+kl_start: 1.0
+kl_end: 1.0
+kl_weight: 1.0
+
+percep_weight: 1.0
+
+name: ${env_name}-unet-pixel-adapter-img32-${dataset_type}

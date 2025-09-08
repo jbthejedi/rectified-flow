@@ -1,0 +1,37 @@
+name: it-film-ca-server-${dataset_type}
+data_root: /workspace/data
+env: server
+
+dataset_type: 'flickr30k'
+
+n_epochs: 40
+
+image_size: 32
+batch_size: 512
+normalize_shape: 0.5
+
+num_channels: 4
+latent_dims: 128
+latent_channels: 4
+num_groups: 32
+
+num_workers: 0
+
+artifact_name: jbarry-team/${project}/${name}-best-model:latest
+download_data: False
+# wandb_mode: disabled
+wandb_mode: online
+
+save_model: True
+test_model: False
+train_model: True
+
+compile: False
+do_small_sample: False
+sample_size_k: 1024
+
+summary: False
+
+inference_peek_num: 1
+local_visualization: False
+write_inference_samples: True

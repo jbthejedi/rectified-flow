@@ -1,0 +1,40 @@
+dataset_type: celeba
+
+name: server-overfit-unet-pixel-img32-${dataset_type}
+data_root: /workspace/data
+download_data: False
+env: server
+
+n_epochs: 300
+
+image_size: 32
+batch_size: 256
+normalize_shape: 0.5
+time_dim: 128
+p_train_len: 0.9
+num_steps: 300
+
+num_channels: 3
+num_groups: 32
+
+num_workers: 4
+pin_memory: True
+debug: False
+
+artifact_name: jbarry-team/${project}/${name}-best-model:latest
+# wandb_mode: disabled
+wandb_mode: online
+
+save_model: True
+train_model: True
+
+compile: False
+do_small_sample: False
+sample_size_k: 128
+
+summary: False
+
+inference_peek_num: 1
+local_visualization: False
+write_inference_samples: True
+num_sample_steps: 300
