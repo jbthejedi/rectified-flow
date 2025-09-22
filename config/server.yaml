@@ -1,0 +1,35 @@
+name: vae-aekl
+data_root: /workspace/data
+dataset_name: 'celeba'
+
+batch_size: 256
+image_size: 64
+n_epochs: 20
+num_channels: 3
+
+###### ADDED ######
+latent_dims: 128
+
+num_workers: 8
+
+artifact_name: jbarry-team/${project}/${name}-best-model:latest
+download_data: False
+wandb_mode: online
+# wandb_mode: disabled
+
+test_run: False
+sample_size: 300
+
+local_visualization: False
+save_model: False
+load_and_test_model: False
+train_model: True
+summary: False
+
+# model_type: mlp
+# model_type: unet
+# model_type: conv
+# model_type: aekl
+model_type: aekl_bak
+
+compile: True
