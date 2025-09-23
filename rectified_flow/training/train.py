@@ -9,21 +9,15 @@ import torchvision.utils as vutils
 from torchvision import datasets, transforms as T
 from torch.utils.data import DataLoader, random_split, Subset
 from tqdm import tqdm
-from models.mnist import *
+from rectified_flow.models.image import *
+from rectified_flow.data.data import ProjectData
 
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 
 def train_test_model(config):
-    dataset = datasets.MNIST(
-        root=config.data_root,
-        download=False,
-        transform=T.Compose([
-            T.ToTensor(),
-        ])
-    )
-
+    dataset = ProjectData(config).data
     if config.do_small_sample:
         indices = random.sample(range(len(dataset)), 1000)
         dataset = Subset(dataset, indices)
@@ -35,8 +29,11 @@ def train_test_model(config):
 
     # Training loop
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    # model = RFModel(img_shape=(1, 28, 28)).to(device)
-    model = TinyUNet(img_shape=(1, 28, 28)).to(device)
+    img_shape = (config.num_channels, config.image_size, config.image_size)
+    # model = RFModel(img_shape=img_shape).to(device)
+    # model = TinyUNet(img_shape=img_shape).to(device)
+    # model = TinyUNet(img_shape=img_shape).to(device)
+    model = UNet(in_channels=config.num_channels, config=config).to(device)
     optimizer = optim.Adam(model.parameters(), lr=1e-4)
 
     for epoch in range(config.n_epochs):
@@ -50,7 +47,9 @@ def train_test_model(config):
                 xt = (1 - t) * x0 + t * xT                # (B, 1, 28, 28)
                 v = xT - x0                               # (B, 1, 28, 28)
 
-                v_pred = model(xt, t)
+                # v_pred = model(xt, t)
+                v_pred = model(xt)
+
                 loss = ((v_pred - v)**2).mean()
 
                 optimizer.zero_grad()
@@ -81,7 +80,7 @@ def train_test_model(config):
     
     with torch.no_grad():
         model.eval()
-        imgs = sample_batch(model, batch_size=16, num_steps=50, img_shape=(1, 28, 28))
+        imgs = sample_batch(model, batch_size=16, num_steps=50, img_shape=img_shape)
 
     # make a nice 4x4 grid
     grid = vutils.make_grid(imgs.cpu(), nrow=4, normalize=True, pad_value=1.0)
@@ -90,6 +89,7 @@ def train_test_model(config):
     plt.imshow(grid.permute(1, 2, 0).numpy(), cmap="gray")
     plt.axis("off")
     plt.show()
+
 
 def sample_batch(model, batch_size=16, num_steps=200, img_shape=(1, 28, 28)):
     device = next(model.parameters()).device
@@ -123,8 +123,10 @@ def main():
     elif config.inference:
         test_model(config)
 
+
 def test_model(config):
     pass
+
 
 def load_config(env="local"):
     base_config = OmegaConf.load("config/base.yaml")

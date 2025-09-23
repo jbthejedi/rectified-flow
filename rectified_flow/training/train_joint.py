@@ -6,7 +6,7 @@ import torch
 from torchvision import datasets, transforms as T
 from torch.utils.data import DataLoader, random_split, Subset
 from tqdm import tqdm
-from rectified_flow.models.joint import *
+from rectified_flow.models.image_text import *
 import torch.nn.functional as F
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'

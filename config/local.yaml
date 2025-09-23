@@ -5,10 +5,12 @@ dataset_name: 'celeba'
 # dataset_name: 'mnist'
 
 batch_size: 8
-image_size: 64
+image_size: 32
+normalize_shape: 0.5
+
 # image_size: 128
 # image_size: 28
-n_epochs: 4
+n_epochs: 10
 num_channels: 3
 # num_channels: 1
 
@@ -40,3 +42,4 @@ summary: False
 model_type: aekl
 compile: False
 do_small_sample: False
+dataset_type: cifar10
