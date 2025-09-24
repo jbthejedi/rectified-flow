@@ -62,6 +62,7 @@ gdown           = ">=5.2.0,<6.0.0"
 lpips           = ">=0.1.4,<0.2.0"
 transformers    = "^4.53.0"
 accelerate      = "^1.9.0"
+diffusers = "^0.35.1"
 
 [tool.poetry.group.dev.dependencies]
 setuptools = ">=80.9.0,<81.0.0"

@@ -11,6 +11,7 @@ from torch.utils.data import DataLoader, random_split, Subset
 from tqdm import tqdm
 from rectified_flow.models.image import *
 from rectified_flow.data.data import ProjectData
+from diffusers import AutoencoderKL
 
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -36,19 +37,33 @@ def train_test_model(config):
     model = UNet(in_channels=config.num_channels, config=config).to(device)
     optimizer = optim.Adam(model.parameters(), lr=1e-4)
 
+    #### DIFFUSERS/AUTOENCODERKL #######
+    vae = AutoencoderKL.from_pretrained(
+        "stabilityai/sd-vae-ft-mse", 
+        # subfolder="vae"
+    ).to(device)
+    vae.eval()
+    for p in vae.parameters():
+        p.requires_grad = False
+
     for epoch in range(config.n_epochs):
         with tqdm(train_dl, desc="Training") as pbar:
             train_loss = 0.0
-            for batch_idx, (x0, _) in enumerate(pbar):    # (B, 1, 28, 28)
-                x0 = x0.to(device)                        # (B, 1, 28, 28)
-                xT = torch.randn_like(x0)                 # (B, 1, 28, 28)
-                t = torch.rand(x0.size(0), device=device) # (B,)
-                t = t.view(-1, 1, 1, 1)                   # (B, 1, 1, 1)
-                xt = (1 - t) * x0 + t * xT                # (B, 1, 28, 28)
-                v = xT - x0                               # (B, 1, 28, 28)
+            for batch_idx, (x0, _) in enumerate(pbar):                                 # (B, 1, 28, 28)
+                B, C, H, W = x0.shape
+                x0 = x0.to(device)                                                     # (B, 1, 28, 28)
+                with torch.no_grad():
+                    # Posterior is DiagonalGaussianDistribution
+                    posterior = vae.encode(x0).latent_dist
+                    x0_latent = posterior.mean * vae.config.scaling_factor             # (B, 4, H//8, W//8)
 
-                # v_pred = model(xt, t)
-                v_pred = model(xt)
+                xT = torch.randn_like(x0_latent)                                       # (B, 1, 28, 28)
+                t = torch.rand(x0.size(0), 1, device=device)                           # (B, 1)
+                xt = (1 - t[:, :, None, None]) * x0_latent + t[:, :, None, None] * xT  # (B, 1, 28, 28)
+                v = xT - x0_latent                                                     # (B, 1, 28, 28)
+
+                v_pred = model(xt, t)
+                # v_pred = model(xt)
 
                 loss = ((v_pred - v)**2).mean()
 
@@ -64,14 +79,22 @@ def train_test_model(config):
             with torch.no_grad():
                 model.eval()
                 val_loss = 0.0
-                for batch_idx, (x0, _) in enumerate(pbar):  # (batch, 1, 28, 28)
-                    x0 = x0.to(device)
-                    xT = torch.randn_like(x0)
-                    t = torch.rand(x0.size(0), device=device)
-                    t = t.view(-1, 1, 1, 1)
-                    xt = (1 - t) * x0 + t * xT
-                    v = xT - x0
+                for batch_idx, (x0, _) in enumerate(pbar):                          # (B, 1, 28, 28)
+                    B, C, H, W = x0.shape
+                    x0 = x0.to(device)                                                     # (B, 1, 28, 28)
+                    with torch.no_grad():
+                        # Posterior is DiagonalGaussianDistribution
+                        posterior = vae.encode(x0).latent_dist
+                        x0_latent = posterior.mean * vae.config.scaling_factor             # (B, 4, H//8, W//8)
+
+                    xT = torch.randn_like(x0_latent)                                       # (B, 1, 28, 28)
+                    t = torch.rand(x0.size(0), 1, device=device)                           # (B, 1)
+                    xt = (1 - t[:, :, None, None]) * x0_latent + t[:, :, None, None] * xT  # (B, 1, 28, 28)
+                    v = xT - x0_latent                                                     # (B, 1, 28, 28)
+
                     v_pred = model(xt, t)
+                    # v_pred = model(xt)
+
                     loss = ((v_pred - v)**2).mean()
 
                     val_loss += loss.item()
@@ -80,7 +103,7 @@ def train_test_model(config):
     
     with torch.no_grad():
         model.eval()
-        imgs = sample_batch(model, batch_size=16, num_steps=50, img_shape=img_shape)
+        imgs = sample_batch_vae(model, vae, batch_size=16, num_steps=50, img_shape=img_shape)
 
     # make a nice 4x4 grid
     grid = vutils.make_grid(imgs.cpu(), nrow=4, normalize=True, pad_value=1.0)
@@ -89,6 +112,28 @@ def train_test_model(config):
     plt.imshow(grid.permute(1, 2, 0).numpy(), cmap="gray")
     plt.axis("off")
     plt.show()
+
+
+def sample_batch_vae(model, vae, batch_size=16, num_steps=200, img_shape=(3, 128, 128)):
+    device = next(model.parameters()).device
+    latent_shape = (4, img_shape[1] // 8, img_shape[2] // 8)   # 4 x H/8 x W/8
+
+    # Start from Gaussian noise in latent space
+    x = torch.randn(batch_size, *latent_shape, device=device)
+    t_vals = torch.linspace(1.0, 0.0, num_steps, device=device)
+
+    for i in range(len(t_vals) - 1):
+        t = t_vals[i].expand(batch_size, 1, 1, 1)  # (B,1,1,1)
+        dt = t_vals[i + 1] - t_vals[i]
+        v_pred = model(x, t)  # (B, 4, H/8, W/8)
+        x = x + v_pred * dt
+
+    # Decode latent → image
+    with torch.no_grad():
+        imgs = vae.decode(x / vae.config.scaling_factor).sample  # (B, 3, H, W)
+        imgs = (imgs.clamp(-1, 1) + 1) / 2  # map back to [0,1]
+
+    return imgs
 
 
 def sample_batch(model, batch_size=16, num_steps=200, img_shape=(1, 28, 28)):

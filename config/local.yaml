@@ -1,18 +1,13 @@
 name: vae-aek-no-skip
 data_root: /Users/justinbarry/projects/data/
 dataset_name: 'celeba'
-# dataset_name: 'cifar10'
-# dataset_name: 'mnist'
+image_size: 128
 
 batch_size: 8
-image_size: 32
 normalize_shape: 0.5
 
-# image_size: 128
-# image_size: 28
-n_epochs: 10
-num_channels: 3
-# num_channels: 1
+n_epochs: 2
+num_channels: 4
 
 latent_dims: 128
 latent_channels: 4
@@ -29,17 +24,11 @@ sample_size: 300
 
 local_visualization: False
 save_model: False
-# save_model: True
 test_model: True
-# train_model: False
 train_model: True
 summary: False
-# summary: True
 
-# model_type: mlp
-# model_type: unet
-# model_type: conv
 model_type: aekl
 compile: False
-do_small_sample: False
+do_small_sample: True
 dataset_type: cifar10
