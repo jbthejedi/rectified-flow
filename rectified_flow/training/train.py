@@ -10,7 +10,7 @@ from torchvision import datasets, transforms as T
 from torch.utils.data import DataLoader, random_split, Subset
 from tqdm import tqdm
 from rectified_flow.models.image import *
-from rectified_flow.data.data import ProjectData
+from rectified_flow.data.datamodule import ProjectData
 from diffusers import AutoencoderKL
 
 
@@ -79,7 +79,7 @@ def train_test_model(config):
             with torch.no_grad():
                 model.eval()
                 val_loss = 0.0
-                for batch_idx, (x0, _) in enumerate(pbar):                          # (B, 1, 28, 28)
+                for batch_idx, (x0, _) in enumerate(pbar):                                 # (B, 1, 28, 28)
                     B, C, H, W = x0.shape
                     x0 = x0.to(device)                                                     # (B, 1, 28, 28)
                     with torch.no_grad():
@@ -112,6 +112,21 @@ def train_test_model(config):
     plt.imshow(grid.permute(1, 2, 0).numpy(), cmap="gray")
     plt.axis("off")
     plt.show()
+
+
+def sample_t(batch_size, device, schedule="uniform"):
+    if schedule == "uniform":
+        t = torch.rand(batch_size, device=device)
+
+    elif schedule == "cosine":
+        u = torch.rand(batch_size, device=device)
+        t = torch.sin(0.5 * math.pi * u) ** 2
+
+    elif schedule == "logit_normal":
+        z = torch.randn(batch_size, device=device)
+        t = torch.sigmoid(1.5 * z)  # 1.5 = sharpness factor
+
+    return t[:, None, None, None]  # shape (B,1,1,1)
 
 
 def sample_batch_vae(model, vae, batch_size=16, num_steps=200, img_shape=(3, 128, 128)):
