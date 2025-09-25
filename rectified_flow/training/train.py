@@ -29,7 +29,6 @@ def train_test_model(config):
     val_dl   = DataLoader(val_set, batch_size=config.batch_size, shuffle=False)
 
     # Training loop
-    device = "cuda" if torch.cuda.is_available() else "cpu"
     img_shape = (config.num_channels, config.image_size, config.image_size)
     # model = RFModel(img_shape=img_shape).to(device)
     # model = TinyUNet(img_shape=img_shape).to(device)

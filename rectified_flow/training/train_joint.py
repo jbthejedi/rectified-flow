@@ -1,85 +1,106 @@
-
 import os
 import random
-from omegaconf import OmegaConf
 import torch
-from torchvision import datasets, transforms as T
-from torch.utils.data import DataLoader, random_split, Subset
+import torch.nn.functional as F
+import torch.optim as optim
+
+from omegaconf import OmegaConf
 from tqdm import tqdm
 from rectified_flow.models.image_text import *
-import torch.nn.functional as F
-from rectified_flow.data.datamodule import *
+from rectified_flow.models.image import *
+from rectified_flow.data.datamodule import ProjectData
+from diffusers import AutoencoderKL
+from torch.utils.data import DataLoader
+from transformers import BertModel
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
+# def collate(batch):
+#     L = []
+#     for item in batch:
+#         x = item['pixel_values']
+#         L.append(x)
+#     pixel_values = torch.stack([item["pixel_values"] for item in batch])
+#     captions = [item["caption"] for item in batch]
+#     return {"pixel_values": pixel_values, "caption": captions}
+
 
 def train_test_model(config):
-    dataset = ProjectData(config).data
+    data = ProjectData(config, device)
+    # train_dl = DataLoader(data.train_set, batch_size=config.batch_size, shuffle=True)
+    # val_dl   = DataLoader(data.val_set, batch_size=config.batch_size)
 
-    if config.do_small_sample:
-        indices = random.sample(range(len(dataset)), 1000)
-        dataset = Subset(dataset, indices)
-        print(len(dataset))
-    train_len = int(len(dataset) * config.p_train_len)
-    train_set, val_set = random_split(dataset, [train_len, len(dataset) - train_len])
-    train_dl = DataLoader(train_set, batch_size=config.batch_size, shuffle=True)
-    val_dl   = DataLoader(val_set, batch_size=config.batch_size, shuffle=False)
+    img_shape = (config.num_channels, config.image_size, config.image_size)
+    # model = UNet(in_channels=config.num_channels, config=config).to(device)
+    bert_dim = 768
+    model = BaselineJointModel(
+        txt_dim=768, img_dim=4, hidden=256
+    )
+    optimizer = optim.Adam(model.parameters(), lr=1e-4)
 
-    model = JointRFModelMNIST().to(device)
+    #### DIFFUSERS/AUTOENCODERKL #######
+    vae = AutoencoderKL.from_pretrained("stabilityai/sd-vae-ft-mse").to(device)
+    vae.eval()
+    for p in vae.parameters():
+        p.requires_grad = False
+
+    #### BERT ENCODER ######
+    bert = BertModel.from_pretrained("bert-base-uncased").to(device)
+
     opt = torch.optim.Adam(model.parameters(), lr=1e-3)
-    enc_dim = 32
-    for epoch in range(config.n_epochs):
-        with tqdm(train_dl, desc="Training") as pbar:
-            train_loss = 0.0
-            for x_img_1, labels in pbar:
-                B = x_img_1.size(0)                                         # (8)
-                x_img_1, labels = x_img_1.to(device), labels.to(device)
+    best_val_loss = float("inf")
+    for epoch in range(1, config.n_epochs + 1):
+        tqdm.write(f"Epoch {epoch}/{config.n_epochs+1}")
+        with tqdm(data.train_dl, desc="Training") as pbar:
+            model.train()
+            train_losses = []
+            for images, token_ids, attn_mask in pbar:
+                images, token_ids = images.to(device), token_ids.to(device)
+
+                # Image -> latent image
+                with torch.no_grad():
+                    # Posterior is DiagonalGaussianDistribution
+                    posterior = vae.encode(images).latent_dist
+                    x_img_1 = posterior.mean * vae.config.scaling_factor                    # (B, IH, 64//8, 64//8)
+                
+                outputs = bert(input_ids=token_ids, attention_mask=attn_mask)        
+                x_txt_1 = outputs.last_hidden_state                                         # (B, L, TH)
+                # x_txt_1 = outputs.pooler_output                                           # (B, TH)
+
+                B = x_img_1.size(0)
                 
                 # Sample base noise
-                x_img_0 = torch.randn_like(model.img_enc(x_img_1))          # (B, 1, 28, 28)
-                x_txt_0 = torch.randn(B, enc_dim, device=device)            # (B, 1, 28, 28)
+                x_img_0 = torch.randn_like(x_img_1)                                         # (B, IH, 8, 8)
+                x_txt_0 = torch.randn_like(x_txt_1)                                         # (B, L, TH)
 
                 # Sample timestep
-                t = torch.rand(B, 1, device=device)                         # (B, 1)
+                t = torch.rand(B, 1, device=device)                                         # (B, 1)
 
                 # Interpolate
-                img_feat_1 = model.img_enc(x_img_1)                         # (B, 32)
-                txt_feat_1 = model.txt_enc(labels)                          # (B, 32)
-
-                x_img_t = (1 - t) * x_img_0 + t * img_feat_1                # (B, 32)
-                x_txt_t = (1 - t) * x_txt_0 + t * txt_feat_1                # (B, 32)
+                x_img_t = (1 - t) * x_img_0 + t * x_img_1                                   # (B, IH, 8, 8)
+                x_txt_t = (1 - t.view(B, 1, 1)) * x_txt_0 + t.view(B, 1, 1) * x_txt_1       # (B, L, TH)
 
                 # Target velocity 
-                v_star_img = img_feat_1 - x_img_0
-                u_star_txt = txt_feat_1 - x_txt_0
+                v_star_img = x_img_t - x_img_0                                              # (B, IH, 8, 8)
+                u_star_txt = x_txt_t - x_txt_0                                              # (B, L, TH)
 
                 # Predict velocity
-                x_img_t_ = x_img_t                                          # (B, 32, 1)
-                x_txt_t_ = x_txt_t                                          # (B, 32, 1)
-                v_pred, u_pred = model(x_img_t_, x_txt_t_, t)
+                v_pred, u_pred = model(x_img_t, x_txt_t, t)
 
-                # Loss
-                loss = F.mse_loss(v_pred, v_star_img) + F.mse_loss(u_pred, u_star_txt)
-                opt.zero_grad()
-                loss.backward()
-                opt.step()
+        #         # Loss
+        #         loss = F.mse_loss(v_pred, v_star_img) + F.mse_loss(u_pred, u_star_txt)
+        #         optimizer.zero_grad()
+        #         loss.backward()
+        #         optimizer.step()
+        #         train_loss += loss.item()
+        #         exit(0)
 
-                train_loss += loss.item()
-            train_loss /= len(train_dl)
-            print(f"Epoch {epoch}: Train Loss = {train_loss:.4f}")
-
-    
-    # with torch.no_grad():
-    #     model.eval()
-    #     imgs = sample_joint_batch(model, batch_size=16, num_steps=50, img_shape=(1, 28, 28))
-
-    # # make a nice 4x4 grid
-    # grid = vutils.make_grid(imgs.cpu(), nrow=4, normalize=True, pad_value=1.0)
-
-    # plt.figure(figsize=(6,6))
-    # plt.imshow(grid.permute(1, 2, 0).numpy(), cmap="gray")
-    # plt.axis("off")
-    # plt.show()
+        # with tqdm(data.val_dl, desc="Validation") as pbar:
+        #     model.eval()
+        #     eval_losses = []
+        #     with torch.no_grad():
+        #         for images, token_ids, _ in pbar:
+        #             exit(0)
 
 
 def sample_joint_batch(model, batch_size=16, num_steps=200, img_shape=(1, 28, 28), txt_dim=32):
@@ -135,8 +156,6 @@ def main():
     elif config.inference:
         test_model(config)
 
-def test_model(config):
-    pass
 
 def load_config(env="local"):
     base_config = OmegaConf.load("config/base.yaml")
