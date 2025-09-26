@@ -144,8 +144,6 @@ def main():
 
     elif config.train_model:
         train_test_model(config)
-    elif config.inference:
-        test_model(config)
 
 
 def load_config(env="local"):

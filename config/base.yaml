@@ -1,5 +1,5 @@
 seed: 1337
-project: vae-celeba
+project: rf-joint
 p_dropout: 0.1
 lr: 1e-4
 p_train_len: 0.9
