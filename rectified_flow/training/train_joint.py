@@ -53,6 +53,90 @@ def train_test_model(config):
         tqdm.write(f"Epoch {epoch}/{config.n_epochs+1}")
         with tqdm(data.train_dl, desc="Training") as pbar:
             model.train()
+            train_loss = 0.0
+            for batch_idx, (images, token_ids, attn_mask) in enumerate(pbar):
+                images, token_ids = images.to(device), token_ids.to(device)
+
+                # Image -> latent image
+                with torch.no_grad():
+                    # Posterior is DiagonalGaussianDistribution
+                    posterior = vae.encode(images).latent_dist
+                    x_img_1 = posterior.mean * vae.config.scaling_factor                    # (B, IH, 64//8, 64//8)
+                
+                outputs = bert(input_ids=token_ids, attention_mask=attn_mask)        
+                x_txt_1 = outputs.pooler_output                                             # (B, TH)
+
+                B = x_img_1.size(0)
+                
+                # Sample base noise
+                x_img_0 = torch.randn_like(x_img_1)                                         # (B, IH, 8, 8)
+                x_txt_0 = torch.randn_like(x_txt_1)                                         # (B, TH)
+
+                # Sample timestep
+                t = torch.rand(B, 1, device=device)                                         # (B, 1)
+
+                # Interpolate
+                x_img_t = (1 - t) * x_img_0 + t * x_img_1                                   # (B, IH, 8, 8)
+                x_txt_t = (1 - t) * x_txt_0 + t * x_txt_1                                   # (B, TH)
+
+                # Target velocity 
+                v_star_img = x_img_t - x_img_0                                              # (B, IH, 8, 8)
+                u_star_txt = x_txt_t - x_txt_0                                              # (B, L, TH)
+
+                # Predict velocity
+                v_pred, u_pred = model(x_img_t, x_txt_t, t)
+
+                # Loss
+                loss = F.mse_loss(v_pred, v_star_img) + F.mse_loss(u_pred, u_star_txt)
+
+                # Update
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+                train_loss += loss.item()
+
+                if batch_idx == 2:
+                    break
+
+            train_loss /= len(data.train_dl)
+            print(f"Epoch {epoch}: Train Loss = {train_loss:.4f}")
+
+        # with tqdm(data.val_dl, desc="Validation") as pbar:
+        #     model.eval()
+        #     eval_losses = []
+        #     with torch.no_grad():
+        #         for images, token_ids, _ in pbar:
+        #             exit(0)
+
+
+def train_test_model_ca(config):
+    data = ProjectData(config, device)
+    # train_dl = DataLoader(data.train_set, batch_size=config.batch_size, shuffle=True)
+    # val_dl   = DataLoader(data.val_set, batch_size=config.batch_size)
+
+    img_shape = (config.num_channels, config.image_size, config.image_size)
+    # model = UNet(in_channels=config.num_channels, config=config).to(device)
+    bert_dim = 768
+    model = BaselineJointModel(
+        txt_dim=768, img_dim=4, hidden=256
+    )
+    optimizer = optim.Adam(model.parameters(), lr=1e-4)
+
+    #### DIFFUSERS/AUTOENCODERKL #######
+    vae = AutoencoderKL.from_pretrained("stabilityai/sd-vae-ft-mse").to(device)
+    vae.eval()
+    for p in vae.parameters():
+        p.requires_grad = False
+
+    #### BERT ENCODER ######
+    bert = BertModel.from_pretrained("bert-base-uncased").to(device)
+
+    opt = torch.optim.Adam(model.parameters(), lr=1e-3)
+    best_val_loss = float("inf")
+    for epoch in range(1, config.n_epochs + 1):
+        tqdm.write(f"Epoch {epoch}/{config.n_epochs+1}")
+        with tqdm(data.train_dl, desc="Training") as pbar:
+            model.train()
             train_losses = []
             for images, token_ids, attn_mask in pbar:
                 images, token_ids = images.to(device), token_ids.to(device)
@@ -65,7 +149,7 @@ def train_test_model(config):
                 
                 outputs = bert(input_ids=token_ids, attention_mask=attn_mask)        
                 x_txt_1 = outputs.last_hidden_state                                         # (B, L, TH)
-                # x_txt_1 = outputs.pooler_output                                           # (B, TH)
+                # x_txt_1 = outputs.pooler_output                                             # (B, TH)
 
                 B = x_img_1.size(0)
                 
