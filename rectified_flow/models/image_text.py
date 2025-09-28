@@ -141,19 +141,14 @@ class BaselineJointModel(nn.Module):
 
         #### Time Embedding ####
         t_emb = self.time_emb(t.view(B))                                   # (B, time_dim)
-        # t_emb_im = self.t_proj_im(t_emb)                                 # (B, H*W)
-        # t_emb_txt = self.t_proj_txt(t_emb)                               # (B, L)
         t_emb_im = self.t_proj(t_emb)                                      # (B, P)
         t_emb_txt = self.t_proj(t_emb)                                     # (B, P)
 
         #### Project Image ####
-        # img_tokens = x_img_t.permute(0, 2, 3, 1).view(B, -1, IH)         # (B, H*W, IH)
-        # img_tokens = self.img_proj(img_tokens).squeeze(2) + t_emb_im     # (B, H*W) 
         img_tokens = x_img_t.reshape(B, -1)                                # (B, H*W*IH)
         img_tokens = self.img_proj(img_tokens) + t_emb_im                  # (B, P)
 
         #### Project Text ####
-        # txt_tokens = self.txt_proj(x_txt_t).squeeze(2) + t_emb_txt       # (B, L)
         txt_tokens = self.txt_proj(x_txt_t) + t_emb_txt                    # (B, P)
 
         #### FUSE ####
@@ -193,8 +188,6 @@ class SimpleCrossAttentionModel(nn.Module):
 
         #### TIME EMBEDDING ####
         t_emb = self.time_emb(t.view(B))                                 # (B, time_dim)
-
-        # Project Time
         t_emb = self.time_proj(t_emb)                                    # (B, hidden)
 
         #### Project Image ####

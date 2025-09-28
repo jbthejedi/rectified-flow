@@ -4,7 +4,7 @@ data_root: /Users/justinbarry/projects/flickr30k_entities
 
 dataset_type: 'flickr30k'
 
-n_epochs: 2
+n_epochs: 10
 
 image_size: 32
 batch_size: 8
@@ -19,15 +19,19 @@ num_workers: 4
 
 artifact_name: jbarry-team/${project}/${name}-best-model:latest
 download_data: False
-wandb_mode: disabled
-# wandb_mode: online
+# wandb_mode: disabled
+wandb_mode: online
 
-local_visualization: False
-save_model: True
+save_model: False
 test_model: True
 train_model: True
-summary: False
 
 compile: False
 do_small_sample: True
 sample_size_n: 3
+
+summary: False
+
+inference_peek_num: 2
+local_visualization: False
+write_inference_samples: True
