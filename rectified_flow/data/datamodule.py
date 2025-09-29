@@ -71,7 +71,7 @@ class ProjectData:
                     captions_file=f"{config.data_root}/flickr30k/captions.txt",
                     transform=None
                 )
-                if config.do_small_sample is not None:
+                if config.do_small_sample:
                     idxs = random.sample(range(len(base_ds)), k=config.sample_size_n)
                     base_ds = Subset(base_ds, idxs)
                 n = len(base_ds)
@@ -128,6 +128,7 @@ class ProjectData:
         
         def __sample_dataset(self, dataset):
             if config.do_small_sample:
+                print("Small TEST Sample")
                 indices = random.sample(range(len(dataset)), 1000)
                 dataset = Subset(dataset, indices)
                 print(len(dataset))

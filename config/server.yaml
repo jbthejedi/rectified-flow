@@ -23,7 +23,7 @@ download_data: False
 wandb_mode: online
 
 save_model: False
-test_model: True
+test_model: False
 train_model: True
 
 compile: True
