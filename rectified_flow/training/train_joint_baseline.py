@@ -62,7 +62,9 @@ def train_test_model(config):
     print("Load Model")
     langvae_proj_dim = 128
     model = BaselineJointModel(txt_dim=langvae_proj_dim, img_dim=4, hidden=256)
-    if config.compile: model = torch.compile(model)
+    if config.compile:
+        print("Compile Mode = TRUE")
+        model = torch.compile(model)
     model = model.to(device)
     optimizer = optim.Adam(model.parameters(), lr=config.lr)
 
@@ -147,7 +149,7 @@ def compute_data(images, token_ids, attn_mask, aekl, langvae : LangVAE, model, d
     # Encode text
     # TODO not using attn_mask might throw things off.
     z, _ = langvae.encode_z(token_ids)
-    x_txt_1 = z                                                                      # (B, TH)
+    x_txt_1 = z.to(device)                                                           # (B, TH)
 
     # outputs = bert(input_ids=token_ids, attention_mask=attn_mask)        
     # x_txt_1 = outputs.pooler_output                                                # (B, TH)
