@@ -1,6 +1,7 @@
 name: baseline-joint-it-local-${dataset_type}
 # data_root: /Users/justinbarry/projects/data/
 data_root: /Users/justinbarry/projects/flickr30k_entities
+env: local
 
 dataset_type: 'flickr30k'
 

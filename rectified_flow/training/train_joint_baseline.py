@@ -4,7 +4,6 @@ os.environ["TOKENIZERS_PARALLELISM"] = "false"
 import torch
 
 import torch.multiprocessing as mp
-mp.set_start_method("spawn", force=True)
 
 import torch.nn.functional as F
 import torch.optim as optim
@@ -240,7 +239,9 @@ def main():
     print("Configuration loaded")
     config.device, config.env = device, env
     print(f"Seed {config.seed} Device {config.device}")
+
     if config.device == 'cuda':
+        mp.set_start_method("spawn", force=True)
         print("Set float32_matmul_precision high")
         torch.set_float32_matmul_precision('high')
 

@@ -1,5 +1,6 @@
 name: baseline-joint-it-server-${dataset_type}
 data_root: /workspace/data
+env:server
 
 dataset_type: 'flickr30k'
 
