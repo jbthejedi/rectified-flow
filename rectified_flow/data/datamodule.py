@@ -92,7 +92,7 @@ class ProjectData:
                     T.ToTensor(),
                     T.Normalize(mean, std),
                 ])
-                val_tf = T.Compose([ T.CenterCrop(224), T.Resize(64), T.ToTensor(), T.Normalize(mean, std),
+                val_tf = T.Compose([ T.CenterCrop(224), T.Resize(config.image_size), T.ToTensor(), T.Normalize(mean, std),
                 ])
 
                 train_ds = Subset(

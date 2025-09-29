@@ -60,7 +60,8 @@ def train_test_model(config):
     #### MODEL #####
     print("Load Model")
     langvae_proj_dim = 128
-    model = BaselineJointModel(txt_dim=langvae_proj_dim, img_dim=4, hidden=256)
+    # model = BaselineJointModel(txt_dim=langvae_proj_dim, img_dim=4, hidden=256, p_hidden=config.image_size)
+    model = BaselineJointModel(txt_dim=langvae_proj_dim, img_dim=4, hidden=256, p_hidden=64)
     if config.compile:
         print("Compile Mode = TRUE")
         model = torch.compile(model)
