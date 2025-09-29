@@ -1,4 +1,4 @@
-name: baseline-joint-it-${dataset_type}
+name: baseline-joint-it-server-${dataset_type}
 data_root: /workspace/data
 
 dataset_type: 'flickr30k'
@@ -6,7 +6,7 @@ dataset_type: 'flickr30k'
 n_epochs: 10
 
 image_size: 32
-batch_size: 8
+batch_size: 32
 normalize_shape: 0.5
 
 num_channels: 4
