@@ -12,7 +12,7 @@ from langvae.data_conversion.tokenization import TokenizedDataSet
 
 
 class ProjectData:
-    def __init__(self, config, device, collator=None):
+    def __init__(self, config, collator=None):
         if config.dataset_type == 'cifar10':
             datasets.CIFAR10(
                 root=config.data_root,
@@ -196,7 +196,7 @@ class BatchCollator:
 
 
 class LangVAECollator:
-    def __init__(self, tokenizer, max_length=32, device="cpu"):
+    def __init__(self, tokenizer, max_length=32):
         self.tokenizer = tokenizer # use LangVAE’s tokenizer
         self.max_length = max_length
 
