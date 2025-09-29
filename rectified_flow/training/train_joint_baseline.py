@@ -227,7 +227,7 @@ def sample_joint_batch_vae(model, aekl, langvae, batch_size=4, num_steps=200, im
     imgs = (imgs.clamp(-1, 1) + 1) / 2  # map to [0,1]
 
     # --- Decode text latent → sentences ---
-    sentences = langvae.decode_sentences(x_txt)
+    sentences = langvae.decode_sentences(x_txt.cpu())
 
     return imgs, sentences
 
