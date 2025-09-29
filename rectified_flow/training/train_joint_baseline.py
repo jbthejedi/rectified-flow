@@ -4,6 +4,7 @@ os.environ["TOKENIZERS_PARALLELISM"] = "false"
 import torch
 
 import torch.multiprocessing as mp
+mp.set_start_method("spawn", force=True)
 
 import torch.nn.functional as F
 import torch.optim as optim
@@ -32,6 +33,9 @@ def train_test_model(config):
     )
 
     ##### TEXT ENCODER #####
+    print("Load LangVAE")
+    # bert = BertModel.from_pretrained("bert-base-uncased").to(device)
+    # for p in bert.parameters(): p.requires_grad = False
     langvae = LangVAE.load_from_hf_hub("neuro-symbolic-ai/eb-langvae-bert-base-cased-gpt2-l128").to(device)
 
     # Build collator with its tokenizer
@@ -52,11 +56,6 @@ def train_test_model(config):
     aekl.eval()
     for p in aekl.parameters(): p.requires_grad = False
 
-    #### BERT ENCODER ######
-    print("Load LangVAE")
-    # bert = BertModel.from_pretrained("bert-base-uncased").to(device)
-    # for p in bert.parameters(): p.requires_grad = False
-    langvae = LangVAE.load_from_hf_hub("neuro-symbolic-ai/eb-langvae-bert-base-cased-gpt2-l128")
 
     #### MODEL #####
     print("Load Model")
@@ -243,7 +242,6 @@ def main():
     print(f"Seed {config.seed} Device {config.device}")
 
     if config.device == 'cuda':
-        mp.set_start_method("spawn", force=True)
         print("Set float32_matmul_precision high")
         torch.set_float32_matmul_precision('high')
 
