@@ -236,6 +236,7 @@ def main():
     config.device, config.env = device, env
     print(f"Seed {config.seed} Device {config.device}")
     if config.device == 'cuda':
+        print("Set float32_matmul_precision high")
         torch.set_float32_matmul_precision('high')
 
     # if config.summary:
@@ -243,6 +244,7 @@ def main():
     #     exit()
 
     elif config.train_model:
+        print("Training Model start...")
         train_test_model(config)
 
 
