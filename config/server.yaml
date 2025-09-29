@@ -25,7 +25,7 @@ save_model: False
 test_model: True
 train_model: True
 
-compile: False
+compile: True
 do_small_sample: False
 sample_size_n: 3
 

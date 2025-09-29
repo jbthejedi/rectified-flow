@@ -53,3 +53,6 @@ If you chose to run the script to download the images, you need to put "<project
 
 ##### Extract contents
 `tar xvf flickr30k.tar.gz --no-same-owner`
+
+#### Install LangVAE repo as dependency
+`gh repo clone neuro-symbolic-ai/LangVAE`
