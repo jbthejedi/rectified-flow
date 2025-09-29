@@ -117,12 +117,14 @@ class ProjectData:
                         num_workers=config.num_workers,
                         collate_fn=collator,
                         pin_memory=True,
+                        prefetch_factor=4
                     )
                     self.val_dl = DataLoader(
                         val_ds, batch_size=config.batch_size, shuffle=False,
                         num_workers=config.num_workers,
                         collate_fn=collator,
                         pin_memory=True,
+                        prefetch_factor=4
                     )
                 else:
                     raise Exception("No collator")
