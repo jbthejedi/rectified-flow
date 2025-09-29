@@ -13,6 +13,8 @@ Run the file `./setup_env_on_creation.sh`
 
 #### Esnure poetry env set on project level
 After you run `setup_env_on_creation.sh`, run `source ~/.bashrc` then `poetry config virtualenvs.in-project true`
+Check to see if it's set `poetry config --list | grep virtualenvs.in-project`
+
 
 #### Install desired python version 
 Create file `vim install_python.sh` and c/p contents from "/workspace/config/v0/install_python.sh" to the file then hit :wq to save+exit vim
@@ -21,7 +23,7 @@ Run the file `./install_python.sh`
 
 #### Ensure poetry creates a vm using that version
 `cd <project_root>` (where toml file is)
-`poetry env use /root/.pyenv/versions/3.13.0/bin/python3.13`
+`poetry env use /workspace/.pyenv/versions/3.13.0/bin/python3.13`
 ```
 Creating virtualenv rectified-flow in /workspace/rectified-flow/.venv
 Using virtualenv: /workspace/rectified-flow/.venv
@@ -37,6 +39,7 @@ Using virtualenv: /workspace/rectified-flow/.venv
 
 # On Restart
 Run `config_on_restart.sh`
+export PATH="/workspace/poetry/bin:$PATH"
 
 
 #### SCP flickr30k data to server OR run "donwload_iamges.sh"
