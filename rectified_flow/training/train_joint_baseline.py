@@ -228,6 +228,7 @@ def sample_joint_batch_vae(model, aekl, langvae, batch_size=4, num_steps=200, im
     return imgs, sentences
 
 
+
 def main():
     env = os.environ.get("ENV", "local")
     print(f"env={env}")
@@ -239,9 +240,8 @@ def main():
         print("Set float32_matmul_precision high")
         torch.set_float32_matmul_precision('high')
 
-    # if config.summary:
-    #     print_summary(config)
-    #     exit()
+    if config.summary:
+        raise NotImplementedError("Not Implemented")
 
     elif config.train_model:
         print("Training Model start...")
