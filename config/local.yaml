@@ -1,4 +1,4 @@
-name: baseline-${dataset_type}
+name: baseline-joint-it-${dataset_type}
 # data_root: /Users/justinbarry/projects/data/
 data_root: /Users/justinbarry/projects/flickr30k_entities
 

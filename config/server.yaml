@@ -1,35 +1,36 @@
-name: vae-aekl
+name: baseline-joint-it-${dataset_type}
 data_root: /workspace/data
-dataset_name: 'celeba'
 
-batch_size: 256
-image_size: 64
-n_epochs: 20
-num_channels: 3
+dataset_type: 'flickr30k'
 
-###### ADDED ######
+n_epochs: 10
+
+image_size: 32
+batch_size: 8
+normalize_shape: 0.5
+
+num_channels: 4
 latent_dims: 128
+latent_channels: 4
+num_groups: 32
 
-num_workers: 8
+num_workers: 4
 
 artifact_name: jbarry-team/${project}/${name}-best-model:latest
 download_data: False
-wandb_mode: online
 # wandb_mode: disabled
+wandb_mode: online
 
-test_run: False
-sample_size: 300
-
-local_visualization: False
 save_model: False
-load_and_test_model: False
+test_model: True
 train_model: True
+
+compile: False
+do_small_sample: False
+sample_size_n: 3
+
 summary: False
 
-# model_type: mlp
-# model_type: unet
-# model_type: conv
-# model_type: aekl
-model_type: aekl_bak
-
-compile: True
+inference_peek_num: 1
+local_visualization: False
+write_inference_samples: True

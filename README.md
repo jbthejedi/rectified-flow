@@ -37,3 +37,19 @@ Using virtualenv: /workspace/rectified-flow/.venv
 
 # On Restart
 Run `config_on_restart.sh`
+
+
+#### SCP flickr30k data to server OR run "donwload_iamges.sh"
+If you are running your project on your local machine with the flickr30k data, you can either scp it to the vm
+or you can run the "download_images.sh" script
+
+##### SCP
+`scp -P 19194 -i ~/.ssh/id_ed25519 flickr30k.tar.gz root@157.157.221.29:/workspace/data`
+Make sure "<project_root>/config/v0/captions.txt" is under "/workspace/data"
+
+##### download_images.sh
+Use VIM and c/p contents to "download_images.sh", then exit (:wq) and `chmod +x download_images.sh`
+If you chose to run the script to download the images, you need to put "<project_root>/config/v0/captions.txt" under "/workspace/data"
+
+##### Extract contents
+`tar xvf flickr30k.tar.gz --no-same-owner`
