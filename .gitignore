@@ -180,5 +180,4 @@ wandb
 .vscode/
 *.pth
 
-data/
 *.jsonl
