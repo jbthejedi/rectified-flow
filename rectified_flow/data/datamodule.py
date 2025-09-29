@@ -88,7 +88,7 @@ class ProjectData:
                     # T.RandomHorizontalFlip(0.5),
                     # T.ColorJitter(0.4,0.4,0.4,0.1),
                     T.CenterCrop(224),
-                    T.Resize(64),
+                    T.Resize(config.image_size),
                     T.ToTensor(),
                     T.Normalize(mean, std),
                 ])
