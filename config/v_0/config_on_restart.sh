@@ -49,4 +49,6 @@ echo "==> Placing /workspace/poetry/bin on path"
 # Ensure poetry venvs are created in Project directores
 poetry config virtualenvs.in-project true
 
+export HF_HOME=/workspace/.cache/huggingface
+
 echo "✅ restart configuration setup complete."

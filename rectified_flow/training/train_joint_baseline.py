@@ -2,6 +2,10 @@ import os
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 import torch
+
+import torch.multiprocessing as mp
+mp.set_start_method("spawn", force=True)
+
 import torch.nn.functional as F
 import torch.optim as optim
 import wandb

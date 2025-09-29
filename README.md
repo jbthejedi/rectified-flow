@@ -56,3 +56,7 @@ If you chose to run the script to download the images, you need to put "<project
 
 #### Install LangVAE repo as dependency
 `gh repo clone neuro-symbolic-ai/LangVAE`
+
+#### Ensure huggingface cache is moved to persistent storage (/workspace/...)
+`echo $HF_HOME`
+If not set do `export HF_HOME=/workspace/.cache/huggingface`
