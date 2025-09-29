@@ -3,9 +3,6 @@ os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 import torch
 
-import torch.multiprocessing as mp
-mp.set_start_method("spawn", force=True)
-
 import torch.nn.functional as F
 import torch.optim as optim
 import wandb
@@ -138,7 +135,9 @@ def train_test_model(config):
 
 
 def compute_data(images, token_ids, attn_mask, aekl, langvae : LangVAE, model, device):
-    images, token_ids = images.to(device), token_ids.to(device)
+    images = images.to(device, non_blocking=True)
+    token_ids = token_ids.to(device, non_blocking=True)
+    attn_mask = attn_mask.to(device, non_blocking=True)
 
     # Encode Image
     with torch.no_grad():
@@ -268,4 +267,9 @@ def load_config(env="local"):
 
 
 if __name__ == '__main__':
+    import torch.multiprocessing as mp
+    try:
+        mp.set_start_method("spawn", force=True)
+    except RuntimeError:
+        pass
     main()

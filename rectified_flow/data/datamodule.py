@@ -114,13 +114,15 @@ class ProjectData:
                 if collator is not None:
                     self.train_dl = DataLoader(
                         train_ds, batch_size=config.batch_size, shuffle=True,
-                        num_workers=4,
-                        collate_fn=collator
+                        num_workers=config.num_workers,
+                        collate_fn=collator,
+                        pin_memory=True,
                     )
                     self.val_dl = DataLoader(
                         val_ds, batch_size=config.batch_size, shuffle=False,
-                        num_workers=4,
-                        collate_fn=collator
+                        num_workers=config.num_workers,
+                        collate_fn=collator,
+                        pin_memory=True,
                     )
                 else:
                     raise Exception("No collator")
@@ -197,7 +199,6 @@ class LangVAECollator:
     def __init__(self, tokenizer, max_length=32, device="cpu"):
         self.tokenizer = tokenizer # use LangVAE’s tokenizer
         self.max_length = max_length
-        self.device = device
 
     def __call__(self, batch):
         images, captions = zip(*batch)       # unzip batch
@@ -213,7 +214,7 @@ class LangVAECollator:
         )
 
         # Move tensors to correct device
-        input_ids = tokenized["input_ids"].to(self.device)
-        attention_mask = tokenized["attention_mask"].to(self.device)
+        input_ids = tokenized["input_ids"]
+        attention_mask = tokenized["attention_mask"]
 
-        return images.to(self.device), input_ids, attention_mask
+        return images, input_ids, attention_mask
