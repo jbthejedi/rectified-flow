@@ -129,8 +129,16 @@ with torch.inference_mode():
         t2=time.time()
 
         # text latents (batched)
-        z, _ = langvae.encode_z(token_ids)  # (B, latent_dim) on GPU
-        txt_latents = z.to(device)
+        amp_dtype = torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
+        with torch.autocast(device_type="cuda", dtype=amp_dtype):
+            zs = []
+            for i in range(0, token_ids.size(0), 16):  # microbatch 16
+                z_i, _ = langvae.encode_z(token_ids[i:i+16])
+                zs.append(z_i)
+            z = torch.cat(zs, dim=0)
+            # z, _ = langvae.encode_z(token_ids)
+            # z, _ = langvae.encode_z(token_ids)  # (B, latent_dim) on GPU
+        txt_latents = z
         t3=time.time()
 
         # write each sample as its own .pt (easy to stream/shuffle later)
