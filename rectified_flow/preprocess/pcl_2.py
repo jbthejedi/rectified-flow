@@ -142,7 +142,7 @@ with torch.inference_mode():
             #     zs.append(z_i)
             # z = torch.cat(zs, dim=0)
             z, _ = langvae.encode_z(token_ids)
-            tqdm.write("encode_z output device:", z.device)
+            tqdm.write(f"encode_z output device: {z.device}")
             # z, _ = langvae.encode_z(token_ids)  # (B, latent_dim) on GPU
         txt_latents = z
         t3=time.time()
