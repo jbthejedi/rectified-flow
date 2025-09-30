@@ -96,6 +96,7 @@ def train_test_model(config):
         with tqdm(data.train_dl, desc="Training") as pbar:
             model.train()
             train_loss = 0.0
+            tqdm.write("Pre Iter Fetch")
             for (images, token_ids, attn_mask), t_fetch in timed_iter(data.train_dl):
             # for images, token_ids, attn_mask in pbar:
                 tqdm.write(f"[fetch] {t_fetch:.3f}s")
