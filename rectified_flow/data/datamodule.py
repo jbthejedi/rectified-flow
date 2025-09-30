@@ -1,5 +1,6 @@
 import random
-import os
+import os, glob, torch
+from torch.utils.data import Dataset
 from torchvision import datasets, transforms as T
 from datasets import load_dataset
 from torch.utils.data import DataLoader, random_split, Subset, Dataset
@@ -161,61 +162,21 @@ class Flickr30kDataset(Dataset):
         return img, caption
 
 
-class LangVAECollator:
-    def __init__(self, tokenizer, max_length=32):
-        self.tokenizer = tokenizer # use LangVAE’s tokenizer
-        self.max_length = max_length
+class PrecomputedLatents(Dataset):
+    def __init__(self, latents_dir: str):
+        self.files = sorted(glob.glob(os.path.join(latents_dir, "sample_*.pt")))
+        if not self.files:
+            raise FileNotFoundError(f"No sample_*.pt in {latents_dir}")
 
-    def __call__(self, batch):
-        images, captions = zip(*batch)       # unzip batch
-        images = torch.stack(images, dim=0)  # (B,3,H,W)
-
-        # Use LangVAE’s tokenizer
-        tokenized = self.tokenizer(
-            list(captions),
-            padding="max_length",
-            truncation=True,
-            max_length=self.max_length,
-            return_tensors="pt",
-        )
-
-        # Move tensors to correct device
-        input_ids = tokenized["input_ids"]
-        attention_mask = tokenized["attention_mask"]
-
-        return images, input_ids, attention_mask
-
-
-class Flickr30kTokenized(Dataset):
-    def __init__(self, images_root, captions_file, transform, max_length=77):
-        self.images_root = images_root
-        self.transform = transform
-        self.max_length = max_length
-        self.captions = {}
-        with Path(captions_file).open("r") as f:
-            for line in f:
-                line = line.strip()
-                if not line or line.startswith("#"): continue
-                parts = line.split(None, 1)
-                if len(parts) < 2: continue
-                img_id, caption = parts
-                filename = img_id.split("#")[0].strip().strip('"').strip(',')
-                self.captions.setdefault(filename, []).append(caption)
-        self.filenames = sorted(self.captions.keys())
-
-    def __len__(self): return len(self.filenames)
+    def __len__(self): return len(self.files)
 
     def __getitem__(self, idx):
-        fn = self.filenames[idx]
-        img = Image.open(os.path.join(self.images_root, fn)).convert("RGB")
-        if self.transform: img = self.transform(img)
-        caption = random.choice(self.captions[fn])
+        obj = torch.load(self.files[idx], map_location="cpu")
+        x_img_1 = obj["image_latent"].float()     # expect (4,8,8) or (1,4,8,8)
+        if x_img_1.dim() == 4 and x_img_1.size(0) == 1:
+            x_img_1 = x_img_1.squeeze(0)         # -> (4,8,8)
+        assert x_img_1.dim() == 3 and x_img_1.size(0) == 4, f"bad img latent shape {tuple(x_img_1.shape)}"
 
-        # tokenize inside the worker
-        tok = _worker_tokenizer(
-            caption, padding="max_length", truncation=True,
-            max_length=self.max_length, return_tensors="pt"
-        )
-        input_ids = tok["input_ids"].squeeze(0)         # (L,)
-        attention_mask = tok["attention_mask"].squeeze(0)
-        return img, input_ids, attention_mask
+        x_txt_1 = obj["text_latent"].float().view(-1)  # -> (D,)
+        cap = obj.get("caption", "")
+        return x_img_1.contiguous(), x_txt_1.contiguous(), cap

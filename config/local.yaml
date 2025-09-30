@@ -20,8 +20,8 @@ num_workers: 4
 
 artifact_name: jbarry-team/${project}/${name}-best-model:latest
 download_data: False
-# wandb_mode: disabled
-wandb_mode: online
+wandb_mode: disabled
+# wandb_mode: online
 
 save_model: False
 test_model: True
