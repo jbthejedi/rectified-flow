@@ -1,7 +1,7 @@
 import os
 os.environ["TKENIZERS_PARALLELISM"] = "true"
 
-import torch
+import torch, json
 torch.backends.cuda.matmul.allow_tf32 = True
 torch.backends.cudnn.allow_tf32 = True
 
@@ -191,17 +191,19 @@ def train_test_model(config):
         if (epoch % config.inference_peek_num == 0) and config.write_inference_samples:
             tqdm.write("Logging inference samples to wandb")
             images = wandb.Image(grid, caption=f"Epoch {epoch}")
-            print(f"len(sent) {len(sentences)}")
-            sents = [[i, s] for i, s in enumerate(sentences)]
-            print(sents)
-            table = wandb.Table(
-                    columns=["sample_id", "sentence"],
-                    data=sents
-                )
+            # print(f"len(sent) {len(sentences)}")
+            # sents = [[i, s] for i, s in enumerate(sentences)]
+            # print(sents)
+            rows = [[int(i), (s or "").strip() or "<empty>"] for i, s in enumerate(sentences)]
+            payload = json.dumps(rows, ensure_ascii=False)
+            # table = wandb.Table(
+            #         columns=["sample_id", "sentence"],
+            #         data=sents
+            #     )
             wandb.log({
                 "epoch": epoch,
                 "samples/images": images,
-                "samples/texts": table,
+                "samples/texts": payload,
             })
         wandb.log({
             "epoch": epoch,
