@@ -182,3 +182,4 @@ wandb
 
 *.jsonl
 precomputed_latents/
+langvae_tokenizer_ckpt/
