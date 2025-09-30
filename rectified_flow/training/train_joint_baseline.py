@@ -190,22 +190,22 @@ def train_test_model(config):
             plt.show()
         if (epoch % config.inference_peek_num == 0) and config.write_inference_samples:
             tqdm.write("Logging inference samples to wandb")
+
             images = wandb.Image(grid, caption=f"Epoch {epoch}")
+
             print(f"len(sent) {len(sentences)}")
-            # sents = [[i, s] for i, s in enumerate(sentences)]
-            # print(sents)
-            # rows = [[int(i), (s or "").strip() or "<empty>"] for i, s in enumerate(sentences)]
-            # payload = json.dumps(rows, ensure_ascii=False)
-            # table = wandb.Table(
-            #         columns=["sample_id", "sentence"],
-            #         data=sents
-            #     )
-            body = "\n".join(f"[{i}] {(s or '').strip() or '<empty>'}" for i, s in enumerate(sentences))
+            sents = [[i, s] for i, s in enumerate(sentences)]
+            print(sents)
+            table = wandb.Table(
+                    columns=["sample_id", "sentence"],
+                    data=sents
+                )
             wandb.log({
                 "epoch": epoch,
                 "samples/images": images,
-                "samples/sentences": body,
+                "samples/sentences": table,
             }, step=epoch)
+
         wandb.log({
             "epoch": epoch,
             "train/loss": train_loss,
