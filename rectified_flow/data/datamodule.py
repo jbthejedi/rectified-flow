@@ -161,26 +161,6 @@ class Flickr30kDataset(Dataset):
         return img, caption
 
 
-class BatchCollator:
-    def __init__(self, max_length=77, device='cpu'):
-        self.tokenizer : BertTokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
-        self.max_length = max_length
-        self.device = device
-
-    def __call__(self, batch):
-        images, captions = zip(*batch)
-        images = torch.stack(images, dim=0)
-        tokenized = self.tokenizer(
-            list(captions),
-            padding='max_length',
-            truncation=True,
-            max_length=self.max_length,
-            return_tensors='pt',
-        )
-        attention_mask = tokenized.attention_mask
-        input_ids = tokenized.input_ids
-        return images, input_ids, attention_mask
-
 
 class LangVAECollator:
     def __init__(self, tokenizer, max_length=32):

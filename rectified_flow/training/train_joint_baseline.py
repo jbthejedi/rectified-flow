@@ -79,13 +79,26 @@ def train_test_model(config):
     optimizer = optim.Adam(model.parameters(), lr=config.lr)
     # assert_cuda_ready(model, aekl, langvae, device)
 
+    def timed_iter(dataloader):
+        it = iter(dataloader)
+        while True:
+            t0 = time.perf_counter()
+            try:
+                batch = next(it)   # <-- includes worker time + transfers + collate
+            except StopIteration:
+                return
+            t1 = time.perf_counter()
+            yield batch, (t1 - t0)
+
     best_val_loss = float("inf")
     for epoch in range(1, config.n_epochs+1):
         tqdm.write(f"Epoch {epoch}/{config.n_epochs}")
         with tqdm(data.train_dl, desc="Training") as pbar:
             model.train()
             train_loss = 0.0
-            for images, token_ids, attn_mask in pbar:
+            for (images, token_ids, attn_mask), t_fetch in timed_iter(data.train_dl):
+            # for images, token_ids, attn_mask in pbar:
+                tqdm.write(f"[fetch] {t_fetch:.3f}s")
                 v_pred, u_pred, v_star_img, u_star_txt = compute_data(images, token_ids, attn_mask,
                                                                       aekl, langvae, model, device)
 
