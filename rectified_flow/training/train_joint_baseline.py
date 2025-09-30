@@ -210,7 +210,7 @@ def compute_data(images, token_ids, attn_mask, aekl, langvae : LangVAE, model, d
             posterior = aekl.encode(images).latent_dist
         x_img_1 = posterior.mean * aekl.config.scaling_factor          # (B,4,8,8)
     assert x_img_1.is_cuda, "AEKL.encode returned CPU tensor"
-    tqdm.write(f"encode img {time.time() - t1}") 
+    # tqdm.write(f"encode img {time.time() - t1}") 
     
     # Encode text
     # TODO not using attn_mask might throw things off.
@@ -218,7 +218,7 @@ def compute_data(images, token_ids, attn_mask, aekl, langvae : LangVAE, model, d
     with torch.no_grad():
         with torch.autocast(device_type="cuda", dtype=amp_dtype):
             z, _ = langvae.encode_z(token_ids)
-            tqdm.write(f"encode_z output device: {z.device}")
+            # tqdm.write(f"encode_z output device: {z.device}")
     x_txt_1 = z                                                                      # (B, TH)
     # tqdm.write(f"encode text {time.time() - t2}") 
 
