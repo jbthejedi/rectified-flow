@@ -1,7 +1,4 @@
-import os
-import json
-import math
-import torch
+import os, json, math, torch, time
 from torch.utils.data import DataLoader, Dataset
 from torchvision import transforms as T
 from PIL import Image
@@ -99,11 +96,19 @@ langvae.eval()
 # Small sanity: all params really on CUDA
 _ = next(aekl.parameters()).device, next(langvae.parameters()).device
 
-# ---------- Precompute (batched) ----------
+os.environ.setdefault("TOKENIZERS_PARALLELISM", "true")
+total = 0
+t_load = t_tok = t_gpu = t_write = 0.0
+
 with torch.inference_mode():
-    for idxs, imgs, captions in tqdm(dl, desc="Precomputing", ncols=100):
+    it = iter(dl)
+    for _ in tqdm(dl, desc="Profiling"):
+    # for idxs, imgs, captions in tqdm(dl, desc="Precomputing", ncols=100):
+        t0 = time.time()
+        idxs, imgs, captions = next(it) 
         # move images to GPU in batch
-        imgs = imgs.to(device, non_blocking=True)  # (B,3,64,64)
+        # imgs = imgs.to(device, non_blocking=True)  # (B,3,64,64)
+        t1 = time.time()
 
         # image latents (posterior mean * scaling_factor)
         post = aekl.encode(imgs).latent_dist
@@ -118,10 +123,12 @@ with torch.inference_mode():
             return_tensors="pt",
         )
         token_ids = tok["input_ids"].to(device, non_blocking=True)  # (B,77)
+        t2=time.time()
 
         # text latents (batched)
         z, _ = langvae.encode_z(token_ids)  # (B, latent_dim) on GPU
         txt_latents = z.cpu()
+        t3=time.time()
 
         # write each sample as its own .pt (easy to stream/shuffle later)
         for b in range(len(idxs)):
@@ -134,6 +141,12 @@ with torch.inference_mode():
                 },
                 sample_path,
             )
+        t4=time.time()
+        print(f"t_load {t1-t0}")
+        print(f"t_tok {t2-t1}")
+        print(f"t_gpu {t3-t2}")
+        print(f"t_write {t4-t3}")
+        t_load += (t1-t0); t_tok += (t2-t1); t_gpu += (t3-t2); t_write += (t4-t3)
 
 # Optional: write an index file
 with open(os.path.join(OUT_DIR, "meta.json"), "w") as f:
