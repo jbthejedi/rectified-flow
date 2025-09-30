@@ -20,6 +20,11 @@ from langvae import LangVAE
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 def train_test_model(config):
+    ### PRE TESTING GPU ####
+    print("CUDA avail:", torch.cuda.is_available())
+    print("Device count:", torch.cuda.device_count())
+    print("Using:", torch.cuda.get_device_name(0))
+
     ##### INIT WANDB #####
     config_dict = OmegaConf.to_container(config)
     wandb.init(
@@ -35,6 +40,8 @@ def train_test_model(config):
     # for p in bert.parameters(): p.requires_grad = False
     langvae = LangVAE.load_from_hf_hub("neuro-symbolic-ai/eb-langvae-bert-base-cased-gpt2-l128")
     langvae = langvae.to(device)
+    langvae.eval()
+    for p in langvae.parameters(): p.requires_grad = False
 
     # Build collator with its tokenizer
     print(f"Device pre collator {device}")
@@ -198,7 +205,8 @@ def compute_data(images, token_ids, attn_mask, aekl, langvae : LangVAE, model, d
     
     # Encode text
     # TODO not using attn_mask might throw things off.
-    z, _ = langvae.encode_z(token_ids)
+    with torch.no_grad():
+        z, _ = langvae.encode_z(token_ids)
     x_txt_1 = z.to(device)                                                           # (B, TH)
 
     # outputs = bert(input_ids=token_ids, attention_mask=attn_mask)        

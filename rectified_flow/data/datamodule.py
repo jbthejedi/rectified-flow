@@ -84,9 +84,6 @@ class ProjectData:
                 mean = [0.444, 0.421, 0.384]
                 std = [0.275, 0.267, 0.276]
                 train_tf = T.Compose([
-                    # T.RandomResizedCrop(224, scale=(0.8,1.0)),
-                    # T.RandomHorizontalFlip(0.5),
-                    # T.ColorJitter(0.4,0.4,0.4,0.1),
                     T.CenterCrop(224),
                     T.Resize(config.image_size),
                     T.ToTensor(),
@@ -117,6 +114,7 @@ class ProjectData:
                         num_workers=config.num_workers,
                         collate_fn=collator,
                         pin_memory=True,
+                        persistent_workers=True,
                         prefetch_factor=4
                     )
                     self.val_dl = DataLoader(
@@ -124,26 +122,13 @@ class ProjectData:
                         num_workers=config.num_workers,
                         collate_fn=collator,
                         pin_memory=True,
+                        persistent_workers=True,
                         prefetch_factor=4
                     )
                 else:
                     raise Exception("No collator")
 
         
-        def __sample_dataset(self, dataset):
-            if config.do_small_sample:
-                print("Small TEST Sample")
-                indices = random.sample(range(len(dataset)), 1000)
-                dataset = Subset(dataset, indices)
-                print(len(dataset))
-            return dataset
-
-        def get_dataloader():
-            train_dl = DataLoader(self.train_set, batch_size=config.batch_size, shuffle=True)
-            val_dl   = DataLoader(self.val_set, batch_size=config.batch_size)
-        
-
-
 class Flickr30kDataset(Dataset):
     def __init__(self, images_root, captions_file, transform=None):
         self.images_root = images_root
