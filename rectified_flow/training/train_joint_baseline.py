@@ -15,7 +15,8 @@ import torchvision.utils as vutils
 from omegaconf import OmegaConf
 from tqdm import tqdm
 from rectified_flow.models.image_text import *
-from rectified_flow.data.datamodule import *
+from rectified_flow.data.flickr30k_tokenized import *
+from torch.utils.data import DataLoader
 from diffusers import AutoencoderKL
 
 from langvae import LangVAE
@@ -24,9 +25,9 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 def train_test_model(config):
     ### PRE TESTING GPU ####
-    print("CUDA avail:", torch.cuda.is_available())
-    print("Device count:", torch.cuda.device_count())
-    print("Using:", torch.cuda.get_device_name(0))
+    if torch.cuda.is_available():
+        print("Device count:", torch.cuda.device_count())
+        print("Using:", torch.cuda.get_device_name(0))
 
     ##### INIT WANDB #####
     config_dict = OmegaConf.to_container(config)
@@ -47,51 +48,46 @@ def train_test_model(config):
     for p in langvae.parameters(): p.requires_grad = False
     langvae.encoder.to(device); langvae.decoder.to(device)
 
-    # # Build collator with its tokenizer
-    # print(f"Device pre collator {device}")
-    # collator = LangVAECollator(
-    #     tokenizer=langvae.decoder.tokenizer,
-    #     max_length=77,
-    # )
-
-    # ##### DATA ######
-    # data = ProjectData(config, collator)
-    # print(f"Len Train: {len(data.train_dl)}")
-    # print(f"Len Val: {len(data.val_dl)}")
+    # after loading langvae
+    tok_path = langvae.decoder.tokenizer.name_or_path
+    # If that’s not a real directory (e.g. came from HF hub cache), make one workers can read:
+    if not os.path.isdir(tok_path):
+        tok_path = "./langvae_tokenizer_ckpt"
+        os.makedirs(tok_path, exist_ok=True)
+        langvae.decoder.tokenizer.save_pretrained(tok_path)  # writes vocab + merges
 
     mean = [0.444, 0.421, 0.384]
-    std = [0.275, 0.267, 0.276]
-    train_tf = T.Compose([
-        T.CenterCrop(224),
-        T.Resize(config.image_size),
-        T.ToTensor(),
-        T.Normalize(mean, std),
-    ])
-    val_tf = T.Compose([ T.CenterCrop(224), T.Resize(config.image_size), T.ToTensor(), T.Normalize(mean, std),
-    ])
+    std  = [0.275, 0.267, 0.276]
+    train_tf = T.Compose([T.CenterCrop(224), T.Resize(config.image_size), T.ToTensor(), T.Normalize(mean, std)])
+    val_tf   = T.Compose([T.CenterCrop(224), T.Resize(config.image_size), T.ToTensor(), T.Normalize(mean, std)])
 
-    images_root = f"{config.data_root}/flickr30k/Images",
-    captions_file = f"{config.data_root}/flickr30k/captions.txt",
-    train_ds = Flickr30kTokenized(images_root, captions_file,transform=train_tf, max_length=77)
-    val_ds   = Flickr30kTokenized(images_root, captions_file, transform=val_tf,   max_length=77)
+    images_root   = f"{config.data_root}/flickr30k/Images"
+    captions_file = f"{config.data_root}/flickr30k/captions.txt"
 
-
-    def _worker_init_fn(_):
-        global _worker_tokenizer
-        # one tokenizer per worker (fast Rust backend)
-        _worker_tokenizer = langvae.decoder.tokenizer
+    train_ds = Flickr30kTokenized(
+        images_root=images_root,
+        captions_file=captions_file,
+        tokenizer_name_or_path=tok_path,
+        transform=train_tf,
+        max_length=77,
+    )
+    val_ds = Flickr30kTokenized(
+        images_root=images_root,
+        captions_file=captions_file,
+        tokenizer_name_or_path=tok_path,
+        transform=val_tf,
+        max_length=77,
+    )
 
     train_dl = DataLoader(
         train_ds, batch_size=config.batch_size, shuffle=True,
         num_workers=config.num_workers, pin_memory=True,
         persistent_workers=True, prefetch_factor=4,
-        worker_init_fn=_worker_init_fn,
     )
     val_dl = DataLoader(
         val_ds, batch_size=config.batch_size, shuffle=False,
         num_workers=config.num_workers, pin_memory=True,
         persistent_workers=True, prefetch_factor=4,
-        worker_init_fn=_worker_init_fn,
     )
 
     #### DIFFUSERS/AUTOENCODERKL #######
