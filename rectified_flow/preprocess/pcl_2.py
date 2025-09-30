@@ -130,7 +130,7 @@ with torch.inference_mode():
 
         # text latents (batched)
         z, _ = langvae.encode_z(token_ids)  # (B, latent_dim) on GPU
-        txt_latents = z.cpu()
+        txt_latents = z.to(device)
         t3=time.time()
 
         # write each sample as its own .pt (easy to stream/shuffle later)
