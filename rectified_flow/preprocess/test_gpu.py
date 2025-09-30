@@ -6,7 +6,7 @@ torch.backends.cudnn.benchmark = True
 device = "cuda"
 N, Cin, H, W = 64, 64, 256, 256   # bump up/down if needed
 Cout, K = 128, 3
-iters = 200
+iters = 100000
 
 x = torch.randn(N, Cin, H, W, device=device)
 w = torch.randn(Cout, Cin, K, K, device=device)
