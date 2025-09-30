@@ -3,13 +3,26 @@ import os
 import torch
 from tqdm import tqdm
 from torchvision import transforms as T
-from PIL import Image
-from pathlib import Path
+from torch.utils.data import DataLoader
 
 from diffusers import AutoencoderKL
 from langvae import LangVAE
 from rectified_flow.data.datamodule import Flickr30kDataset
 from omegaconf import OmegaConf
+
+########## TESTING ########## 
+print(torch.__version__)
+print(torch.version.cuda)
+print(torch.backends.cudnn.version())
+print(torch.cuda.is_available())
+print(torch.cuda.get_device_name(0))
+
+x = torch.randn(32, 3, 64, 64, device="cuda")
+for _ in range(1000):
+    y = torch.nn.functional.conv2d(x, torch.randn(16, 3, 3, 3, device="cuda"))
+torch.cuda.synchronize()
+
+##########
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
@@ -26,8 +39,6 @@ else:
     raise Exception("No config file exists")
 
 print("Configuration loaded")
-config.device, config.env = device, env
-print(f"Seed {config.seed} Device {config.device}")
 
 IMAGES_ROOT = f"{config.data_root}/flickr30k/Images"
 CAPTIONS_FILE = f"{config.data_root}/flickr30k/captions.txt"
@@ -47,6 +58,7 @@ langvae = LangVAE.load_from_hf_hub("neuro-symbolic-ai/eb-langvae-bert-base-cased
 langvae.eval()
 for p in langvae.parameters():
     p.requires_grad = False
+    assert p.device.type == "cuda", "LangVAE param still on CPU"
 
 # Dataset + transform
 tf = T.Compose([
@@ -56,11 +68,12 @@ tf = T.Compose([
     T.Normalize([0.5]*3, [0.5]*3)
 ])
 dataset = Flickr30kDataset(IMAGES_ROOT, CAPTIONS_FILE, transform=tf)
+loader = DataLoader(dataset, batch_size=64, num_workers=4, pin_memory=True)
 
 print(f"Total samples: {len(dataset)}")
 
 # Loop and precompute
-for idx in tqdm(range(len(dataset))):
+for idx in tqdm(range(len(loader))):
     img, caption = dataset[idx]
 
     # ---- Image latent ----
