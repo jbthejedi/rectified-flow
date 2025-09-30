@@ -177,9 +177,9 @@ class PrecomputedLatents(Dataset):
         if x_img_1.dim() == 4 and x_img_1.size(0) == 1:
             x_img_1 = x_img_1.squeeze(0)         # -> (4,8,8)
         assert x_img_1.dim() == 3 and x_img_1.size(0) == 4, f"bad img latent shape {tuple(x_img_1.shape)}"
-        print("Change latent shape")
+        # print("Change latent shape")
 
         x_txt_1 = obj["text_latent"].float().view(-1)  # -> (D,)
         cap = obj.get("caption", "")
-        print("Exit __getitem__")
+        # print("Exit __getitem__")
         return x_img_1.contiguous(), x_txt_1.contiguous(), cap

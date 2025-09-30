@@ -52,16 +52,25 @@ def train_test_model(config):
 
     train_ds = PrecomputedLatents(latents_dir)
     val_ds   = PrecomputedLatents(latents_dir)   # simple: same pool; or split indices if you want
+    print(f"#train files: {len(train_ds)}  #val files: {len(val_ds)}")
 
     train_dl = DataLoader(
-        train_ds, batch_size=config.batch_size, shuffle=True,
-        num_workers=config.num_workers, pin_memory=True,
-        persistent_workers=True, prefetch_factor=4,
+        train_ds,
+        batch_size=config.batch_size,
+        shuffle=True,
+        num_workers=config.num_workers,
+        pin_memory=True,
+        persistent_workers=False,
+        prefetch_factor=4,
     )
     val_dl = DataLoader(
-        val_ds, batch_size=config.batch_size, shuffle=False,
-        num_workers=config.num_workers, pin_memory=True,
-        persistent_workers=True, prefetch_factor=4,
+        val_ds,
+        batch_size=config.batch_size,
+        shuffle=False,
+        num_workers=config.num_workers,
+        pin_memory=True,
+        persistent_workers=False,
+        prefetch_factor=4,
     )
 
     #### DIFFUSERS/AUTOENCODERKL #######
