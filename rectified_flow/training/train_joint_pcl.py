@@ -61,7 +61,7 @@ def train_test_model(config):
         num_workers=config.num_workers,
         pin_memory=True,
         persistent_workers=False,
-        prefetch_factor=4,
+        # prefetch_factor=4,
     )
     val_dl = DataLoader(
         val_ds,
@@ -70,7 +70,7 @@ def train_test_model(config):
         num_workers=config.num_workers,
         pin_memory=True,
         persistent_workers=False,
-        prefetch_factor=4,
+        # prefetch_factor=4,
     )
 
     #### DIFFUSERS/AUTOENCODERKL #######
