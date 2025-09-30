@@ -113,7 +113,9 @@ with torch.inference_mode():
 
         # image latents (posterior mean * scaling_factor)
         post = aekl.encode(imgs).latent_dist
+        t2a = time.time()
         img_latents = (post.mean * aekl.config.scaling_factor).cpu()  # (B,4,8,8) on CPU for saving
+        t2b = time.time()
 
         # tokenize captions as a batch (CPU) -> move ids to GPU once
         tok = langvae.decoder.tokenizer(
@@ -144,6 +146,9 @@ with torch.inference_mode():
             )
         t4=time.time()
         tqdm.write(f"t_load {t1-t0}")
+        tqdm.write(f"aekl encode {t2a-t1}")
+        tqdm.write(f"compute img latents {t2b-t2a}")
+        tqdm.write(f"langvae tokenizer {t2-t2a}")
         tqdm.write(f"t_tok {t2-t1}")
         tqdm.write(f"t_gpu {t3-t2}")
         tqdm.write(f"t_write {t4-t3}")
