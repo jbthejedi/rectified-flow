@@ -107,8 +107,9 @@ with torch.inference_mode():
         t0 = time.time()
         idxs, imgs, captions = next(it) 
         # move images to GPU in batch
-        # imgs = imgs.to(device, non_blocking=True)  # (B,3,64,64)
         t1 = time.time()
+
+        imgs = imgs.to(device, non_blocking=True)  # (B,3,64,64)
 
         # image latents (posterior mean * scaling_factor)
         post = aekl.encode(imgs).latent_dist
