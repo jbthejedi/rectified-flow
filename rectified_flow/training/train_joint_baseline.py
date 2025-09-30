@@ -194,16 +194,12 @@ def train_test_model(config):
             images = wandb.Image(grid, caption=f"Epoch {epoch}")
 
             print(f"len(sent) {len(sentences)}")
-            sents = [[i, s] for i, s in enumerate(sentences)]
-            print(sents)
-            table = wandb.Table(
-                    columns=["sample_id", "sentence"],
-                    data=sents
-                )
+            rows = [(int(i), "" if s is None else str(s)) for i, s in enumerate(sentences)]
+            table = wandb.Table(columns=["sample_id", "sentence"], data=rows)
             wandb.log({
                 "epoch": epoch,
                 "samples/images": images,
-                "samples/sentences": table,
+                f"samples/sentences_ep{epoch}": table,
             }, step=epoch)
 
         wandb.log({
