@@ -194,8 +194,8 @@ def train_test_model(config):
             # print(f"len(sent) {len(sentences)}")
             # sents = [[i, s] for i, s in enumerate(sentences)]
             # print(sents)
-            rows = [[int(i), (s or "").strip() or "<empty>"] for i, s in enumerate(sentences)]
-            payload = json.dumps(rows, ensure_ascii=False)
+            # rows = [[int(i), (s or "").strip() or "<empty>"] for i, s in enumerate(sentences)]
+            # payload = json.dumps(rows, ensure_ascii=False)
             # table = wandb.Table(
             #         columns=["sample_id", "sentence"],
             #         data=sents
@@ -203,7 +203,7 @@ def train_test_model(config):
             wandb.log({
                 "epoch": epoch,
                 "samples/images": images,
-                "samples/texts": payload,
+                "samples/texts": sentences,
             })
         wandb.log({
             "epoch": epoch,
