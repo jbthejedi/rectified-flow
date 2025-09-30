@@ -29,7 +29,7 @@ train_model: True
 
 compile: False
 do_small_sample: True
-sample_size_n: 3
+sample_size_k: 3
 
 summary: False
 

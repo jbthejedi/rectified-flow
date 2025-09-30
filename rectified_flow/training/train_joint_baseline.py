@@ -16,7 +16,7 @@ from omegaconf import OmegaConf
 from tqdm import tqdm
 from rectified_flow.models.image_text import *
 from rectified_flow.data.flickr30k_tokenized import *
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Subset
 from diffusers import AutoencoderKL
 
 from langvae import LangVAE
@@ -78,6 +78,14 @@ def train_test_model(config):
         transform=val_tf,
         max_length=77,
     )
+    if config.do_small_sample:
+        indices = random.sample(range(len(train_ds)), k=config.sample_size_k)
+        train_ds = Subset(train_ds, indices)
+        print(f"Sampled train {len(train_ds)}")
+        
+        indices = random.sample(range(len(val_ds)), k=config.sample_size_k)
+        val_ds = Subset(val_ds, indices)
+        print(f"Sampled train {len(val_ds)}")
 
     train_dl = DataLoader(
         train_ds,
