@@ -148,7 +148,7 @@ with torch.inference_mode():
         tqdm.write(f"t_load {t1-t0}")
         tqdm.write(f"aekl encode {t2a-t1}")
         tqdm.write(f"compute img latents {t2b-t2a}")
-        tqdm.write(f"langvae tokenizer {t2-t2a}")
+        tqdm.write(f"langvae tokenizer {t2-t2b}")
         tqdm.write(f"t_tok {t2-t1}")
         tqdm.write(f"t_gpu {t3-t2}")
         tqdm.write(f"t_write {t4-t3}")
