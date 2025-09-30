@@ -192,9 +192,11 @@ def train_test_model(config):
             tqdm.write("Logging inference samples to wandb")
             images = wandb.Image(grid, caption=f"Epoch {epoch}")
             print(f"len(sent) {len(sentences)}")
+            sents = [[i, s] for i, s in enumerate(sentences)]
+            print(sents)
             table = wandb.Table(
                     columns=["sample_id", "sentence"],
-                    data=[[i, s] for i, s in enumerate(sentences)]
+                    data=sents
                 )
             wandb.log({
                 "epoch": epoch,
