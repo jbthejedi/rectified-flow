@@ -93,7 +93,7 @@ for idx in tqdm(range(len(loader))):
 
     with torch.no_grad():
         z, _ = langvae.encode_z(token_ids)
-        txt_latent = z.cpu()
+        txt_latent = z
 
     # ---- Save ----
     torch.save(
