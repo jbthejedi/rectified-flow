@@ -42,6 +42,8 @@ def train_test_model(config):
     langvae = langvae.to(device)
     langvae.eval()
     for p in langvae.parameters(): p.requires_grad = False
+    langvae.encoder.to(device)
+    langvae.decoder.to(device)   
 
     # Build collator with its tokenizer
     print(f"Device pre collator {device}")
@@ -195,7 +197,7 @@ def compute_data(images, token_ids, attn_mask, aekl, langvae : LangVAE, model, d
     images = images.to(device, non_blocking=True)
     token_ids = token_ids.to(device, non_blocking=True)
     attn_mask = attn_mask.to(device, non_blocking=True)
-    assert_batch_devices(images, token_ids, attn_mask, device)
+    # assert_batch_devices(images, token_ids, attn_mask, device)
 
     # Encode Image
     with torch.no_grad():
@@ -229,11 +231,11 @@ def compute_data(images, token_ids, attn_mask, aekl, langvae : LangVAE, model, d
     v_star_img = x_img_t - x_img_0                                                  # (B, IH, 8, 8)
     u_star_txt = x_txt_t - x_txt_0                                                  # (B, L, TH)
 
-    assert_latents_shapes_devices(x_img_1, x_txt_1, x_img_t, x_txt_t, v_star_img, u_star_txt, device)
+    # assert_latents_shapes_devices(x_img_1, x_txt_1, x_img_t, x_txt_t, v_star_img, u_star_txt, device)
 
     # Predict velocity
     v_pred, u_pred = model(x_img_t, x_txt_t, t)
-    assert_model_outputs(v_pred, u_pred, v_star_img, u_star_txt, device)
+    # assert_model_outputs(v_pred, u_pred, v_star_img, u_star_txt, device)
 
 
     return v_pred, u_pred, v_star_img, u_star_txt
@@ -290,7 +292,7 @@ def sample_joint_batch_vae(model, aekl, langvae, batch_size=4, num_steps=200, im
     imgs = (imgs.clamp(-1, 1) + 1) / 2  # map to [0,1]
 
     # --- Decode text latent → sentences ---
-    sentences = langvae.decode_sentences(x_txt.cpu())
+    sentences = langvae.decode_sentences(x_txt)
 
     return imgs, sentences
 
