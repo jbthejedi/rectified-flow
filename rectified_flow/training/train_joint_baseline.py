@@ -1,5 +1,5 @@
 import os
-os.environ["TKENIZERS_PARALLELISM"] = "true"
+os.environ["TOKENIZERS_PARALLELISM"] = "true"
 
 import torch, json
 torch.backends.cuda.matmul.allow_tf32 = True
@@ -191,7 +191,7 @@ def train_test_model(config):
         if (epoch % config.inference_peek_num == 0) and config.write_inference_samples:
             tqdm.write("Logging inference samples to wandb")
             images = wandb.Image(grid, caption=f"Epoch {epoch}")
-            # print(f"len(sent) {len(sentences)}")
+            print(f"len(sent) {len(sentences)}")
             # sents = [[i, s] for i, s in enumerate(sentences)]
             # print(sents)
             # rows = [[int(i), (s or "").strip() or "<empty>"] for i, s in enumerate(sentences)]
@@ -200,16 +200,17 @@ def train_test_model(config):
             #         columns=["sample_id", "sentence"],
             #         data=sents
             #     )
+            body = "\n".join(f"[{i}] {(s or '').strip() or '<empty>'}" for i, s in enumerate(sentences))
             wandb.log({
                 "epoch": epoch,
                 "samples/images": images,
-                "samples/texts": sentences,
-            })
+                "samples/sentences": body,
+            }, step=epoch)
         wandb.log({
             "epoch": epoch,
             "train/loss": train_loss,
             "val/loss": val_loss,
-        })
+        }, step=epoch)
         if config.save_model:
             tqdm.write("Saving model")
             best_val_loss = save_and_log_model(model, config, best_val_loss, val_loss)
