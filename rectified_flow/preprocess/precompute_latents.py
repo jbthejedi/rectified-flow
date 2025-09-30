@@ -18,7 +18,7 @@ print(torch.cuda.is_available())
 print(torch.cuda.get_device_name(0))
 
 x = torch.randn(32, 3, 64, 64, device="cuda")
-for _ in range(1000):
+for _ in tqdm(range(1_000_000_000)):
     y = torch.nn.functional.conv2d(x, torch.randn(16, 3, 3, 3, device="cuda"))
 torch.cuda.synchronize()
 
