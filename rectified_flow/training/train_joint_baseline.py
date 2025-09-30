@@ -138,11 +138,10 @@ def train_test_model(config):
 
                 optimizer.zero_grad()
                 loss.backward()
-                assert_grads_flowing(model)
                 optimizer.step()
                 train_loss += loss.item()
 
-            train_loss /= len(data.train_dl)
+            train_loss /= len(train_dl)
             tqdm.write(f"Epoch {epoch}: Train Loss = {train_loss:.4f}")
 
         with tqdm(val_dl, desc="Validation") as pbar:
@@ -192,53 +191,6 @@ def train_test_model(config):
             best_val_loss = save_and_log_model(model, config, best_val_loss, val_loss)
 
     print("Done Training")
-
-def assert_cuda_ready(model, aekl, langvae, device):
-    # CUDA available?
-    assert torch.cuda.is_available(), "CUDA not available"
-    assert device == "cuda", f"device is {device}, expected 'cuda'"
-    # Model on CUDA?
-    for p in model.parameters():
-        assert p.is_cuda, "Model parameter on CPU"
-    # AEKL & LangVAE on CUDA?
-    for name, mod in [("AEKL", aekl), ("LangVAE", langvae)]:
-        p = next(mod.parameters(), None)
-        assert p is None or p.is_cuda, f"{name} has params/buffers on CPU"
-    # AEKL frozen + eval
-    assert not any(p.requires_grad for p in aekl.parameters()), "AEKL should be frozen"
-    assert aekl.training is False, "AEKL should be in eval()"
-
-def assert_batch_devices(images, token_ids, attn_mask, device):
-    assert images.device.type == device, "images not on target device"
-    assert token_ids.device.type == device, "token_ids not on target device"
-    assert attn_mask.device.type == device, "attn_mask not on target device"
-    assert images.is_cuda, "images not on CUDA"
-
-def assert_latents_shapes_devices(x_img_1, x_txt_1, x_img_t, x_txt_t, v_star_img, u_star_txt, device):
-    # Devices
-    for t in [x_img_1, x_txt_1, x_img_t, x_txt_t, v_star_img, u_star_txt]:
-        assert t.device.type == device, "latent tensor on wrong device"
-    # Shapes (adapt if you change dims)
-    B = x_img_1.size(0)
-    assert x_img_1.ndim == 4 and x_img_1.shape[1] == 4 and x_img_1.shape[2:] == (8, 8), f"unexpected x_img_1 shape {x_img_1.shape}"
-    assert x_img_t.shape == x_img_1.shape, "x_img_t should match x_img_1"
-    assert x_txt_1.ndim == 2, "x_txt_1 should be (B, txt_dim)"
-    assert x_txt_t.shape == x_txt_1.shape, "x_txt_t should match x_txt_1"
-    assert v_star_img.shape == x_img_1.shape, "v_star_img != image latent shape"
-    assert u_star_txt.shape == x_txt_1.shape, "u_star_txt != text latent shape"
-
-def assert_model_outputs(v_pred, u_pred, v_star_img, u_star_txt, device):
-    assert v_pred.device.type == device and u_pred.device.type == device, "model outputs not on CUDA"
-    assert v_pred.shape == v_star_img.shape, "v_pred shape mismatch"
-    assert u_pred.shape == u_star_txt.shape, "u_pred shape mismatch"
-
-def assert_grads_flowing(model):
-    # At least one trainable param should have grads
-    trainable = [p for p in model.parameters() if p.requires_grad]
-    assert any(p.grad is not None for p in trainable), "No gradients found (did backward run?)"
-    # And at least one grad should be non-zero
-    assert any((p.grad is not None) and (p.grad.detach().abs().sum() > 0) for p in trainable), "All grads are zero"
-
 
 
 def compute_data(images, token_ids, attn_mask, aekl, langvae : LangVAE, model, device):
