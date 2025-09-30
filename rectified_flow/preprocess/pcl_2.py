@@ -97,6 +97,8 @@ for n, p in langvae.named_parameters():
     print(n, p.device)
 langvae.eval()
 [setattr(p, "requires_grad", False) for p in langvae.parameters()]
+langvae.encoder.to(device)
+langvae.decoder.to(device)   
 
 # Small sanity: all params really on CUDA
 _ = next(aekl.parameters()).device, next(langvae.parameters()).device
