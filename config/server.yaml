@@ -27,7 +27,7 @@ test_model: False
 train_model: True
 
 compile: False
-do_small_sample: True
+do_small_sample: False
 sample_size_k: 1024
 
 summary: False
