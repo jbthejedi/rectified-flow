@@ -5,6 +5,13 @@ import torch
 torch.backends.cuda.matmul.allow_tf32 = True
 torch.backends.cudnn.allow_tf32 = True
 
+import torch.multiprocessing as mp
+try:
+    mp.set_start_method("spawn", force=True)   # safer than fork on CUDA boxes
+except RuntimeError:
+    pass
+torch.multiprocessing.set_sharing_strategy("file_system")
+
 import time
 import torch.nn.functional as F
 import torch.optim as optim
@@ -110,9 +117,8 @@ def train_test_model(config):
         with tqdm(train_dl, desc="Training") as pbar:
             model.train()
             train_loss = 0.0
-            tqdm.write("Pre Iter Fetch")
+            # tqdm.write("Pre Iter Fetch")
             for (x_img_1, x_txt_1, caps_), t_fetch in timed_iter(pbar):
-                print(f"Time fetch Train {t_fetch}")
                 v_pred, u_pred, v_star_img, u_star_txt = compute_data_from_latents(x_img_1, x_txt_1, model, device)
                 loss = F.mse_loss(v_pred, v_star_img) + F.mse_loss(u_pred, u_star_txt)
 

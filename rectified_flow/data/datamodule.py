@@ -171,15 +171,12 @@ class PrecomputedLatents(Dataset):
     def __len__(self): return len(self.files)
 
     def __getitem__(self, idx):
-        print("Enter __getitem__")
         obj = torch.load(self.files[idx], map_location="cpu")
         x_img_1 = obj["image_latent"].float()     # expect (4,8,8) or (1,4,8,8)
         if x_img_1.dim() == 4 and x_img_1.size(0) == 1:
             x_img_1 = x_img_1.squeeze(0)         # -> (4,8,8)
         assert x_img_1.dim() == 3 and x_img_1.size(0) == 4, f"bad img latent shape {tuple(x_img_1.shape)}"
-        # print("Change latent shape")
 
         x_txt_1 = obj["text_latent"].float().view(-1)  # -> (D,)
         cap = obj.get("caption", "")
-        # print("Exit __getitem__")
         return x_img_1.contiguous(), x_txt_1.contiguous(), cap
