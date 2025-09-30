@@ -1,5 +1,5 @@
 import os
-os.environ["TOKENIZERS_PARALLELISM"] = "true"
+os.environ["TKENIZERS_PARALLELISM"] = "true"
 
 import torch
 torch.backends.cuda.matmul.allow_tf32 = True
@@ -299,11 +299,13 @@ def save_and_log_model(model, config, best_val_loss, val_loss, filename="best-mo
 @torch.no_grad()
 def sample_joint_batch_vae(model, aekl, langvae, batch_size=4, num_steps=200, img_shape=(4, 8, 8)):
     device = next(model.parameters()).device
+    print(f"sample_batch_vae_joint batch_size {batch_size}")
     txt_dim = langvae.latent_dim 
 
     # --- Start from Gaussian noise in latent space ---
     x_img = torch.randn(batch_size, *img_shape, device=device)   # (B, 4, 8, 8)
     x_txt = torch.randn(batch_size, txt_dim, device=device)      # (B, 128)
+    print(f"x_img.shape {x_img.shape}") 
 
     # Time discretization (from 1 → 0, backward integration)
     t_vals = torch.linspace(1.0, 0.0, num_steps, device=device)
