@@ -1,5 +1,7 @@
 import os
-os.environ["TOKENIZERS_PARALLELISM"] = "false"
+os.environ["TOKENIZERS_PARALLELISM"] = "true"
+torch.backends.cuda.matmul.allow_tf32 = True
+torch.backends.cudnn.allow_tf32 = True
 
 import torch
 
@@ -209,7 +211,7 @@ def compute_data(images, token_ids, attn_mask, aekl, langvae : LangVAE, model, d
     # TODO not using attn_mask might throw things off.
     with torch.no_grad():
         z, _ = langvae.encode_z(token_ids)
-    x_txt_1 = z.to(device)                                                           # (B, TH)
+    x_txt_1 = z                                                                      # (B, TH)
 
     # outputs = bert(input_ids=token_ids, attention_mask=attn_mask)        
     # x_txt_1 = outputs.pooler_output                                                # (B, TH)
