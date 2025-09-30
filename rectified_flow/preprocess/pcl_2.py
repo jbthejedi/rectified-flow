@@ -142,10 +142,10 @@ with torch.inference_mode():
                 sample_path,
             )
         t4=time.time()
-        print(f"t_load {t1-t0}")
-        print(f"t_tok {t2-t1}")
-        print(f"t_gpu {t3-t2}")
-        print(f"t_write {t4-t3}")
+        tqdm.write(f"t_load {t1-t0}")
+        tqdm.write(f"t_tok {t2-t1}")
+        tqdm.write(f"t_gpu {t3-t2}")
+        tqdm.write(f"t_write {t4-t3}")
         t_load += (t1-t0); t_tok += (t2-t1); t_gpu += (t3-t2); t_write += (t4-t3)
 
 # Optional: write an index file
