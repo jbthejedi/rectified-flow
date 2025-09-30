@@ -5,6 +5,7 @@ import torch
 torch.backends.cuda.matmul.allow_tf32 = True
 torch.backends.cudnn.allow_tf32 = True
 
+import time
 import torch.nn.functional as F
 import torch.optim as optim
 import wandb
@@ -44,8 +45,7 @@ def train_test_model(config):
     langvae = langvae.to(device)
     langvae.eval()
     for p in langvae.parameters(): p.requires_grad = False
-    langvae.encoder.to(device)
-    langvae.decoder.to(device)   
+    langvae.encoder.to(device); langvae.decoder.to(device)
 
     # Build collator with its tokenizer
     print(f"Device pre collator {device}")
@@ -77,7 +77,7 @@ def train_test_model(config):
         model = torch.compile(model)
     model = model.to(device)
     optimizer = optim.Adam(model.parameters(), lr=config.lr)
-    assert_cuda_ready(model, aekl, langvae, device)
+    # assert_cuda_ready(model, aekl, langvae, device)
 
     best_val_loss = float("inf")
     for epoch in range(1, config.n_epochs+1):
@@ -202,22 +202,31 @@ def compute_data(images, token_ids, attn_mask, aekl, langvae : LangVAE, model, d
     # assert_batch_devices(images, token_ids, attn_mask, device)
 
     # Encode Image
+    t1 = time.time()
+    amp_dtype = torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
     with torch.no_grad():
-        # Posterior is DiagonalGaussianDistribution
-        posterior = aekl.encode(images).latent_dist
-        x_img_1 = posterior.mean * aekl.config.scaling_factor                        # (B, IH, 64//8, 64//8)
+        with torch.autocast(device_type="cuda", dtype=amp_dtype):
+            posterior = aekl.encode(images).latent_dist
+        x_img_1 = posterior.mean * aekl.config.scaling_factor          # (B,4,8,8)
+    assert x_img_1.is_cuda, "AEKL.encode returned CPU tensor"
+    tqdm.write(f"encode img {time.time() - t1}") 
     
     # Encode text
     # TODO not using attn_mask might throw things off.
+    t2 = time.time()
     with torch.no_grad():
-        z, _ = langvae.encode_z(token_ids)
+        with torch.autocast(device_type="cuda", dtype=amp_dtype):
+            z, _ = langvae.encode_z(token_ids)
+            tqdm.write(f"encode_z output device: {z.device}")
     x_txt_1 = z                                                                      # (B, TH)
+    tqdm.write(f"encode text {time.time() - t2}") 
 
     # outputs = bert(input_ids=token_ids, attention_mask=attn_mask)        
     # x_txt_1 = outputs.pooler_output                                                # (B, TH)
 
     B = x_img_1.size(0)
     
+    t3 = time.time()
     # Sample base noise
     x_img_0 = torch.randn_like(x_img_1)                                             # (B, IH, 8, 8)
     x_txt_0 = torch.randn_like(x_txt_1)                                             # (B, TH)
@@ -232,11 +241,14 @@ def compute_data(images, token_ids, attn_mask, aekl, langvae : LangVAE, model, d
     # Target velocity 
     v_star_img = x_img_t - x_img_0                                                  # (B, IH, 8, 8)
     u_star_txt = x_txt_t - x_txt_0                                                  # (B, L, TH)
+    tqdm.write(f"tensor math {time.time() - t3}") 
 
     # assert_latents_shapes_devices(x_img_1, x_txt_1, x_img_t, x_txt_t, v_star_img, u_star_txt, device)
 
     # Predict velocity
+    t4 = time.time()
     v_pred, u_pred = model(x_img_t, x_txt_t, t)
+    tqdm.write(f"prediction {time.time() - t4}") 
     # assert_model_outputs(v_pred, u_pred, v_star_img, u_star_txt, device)
 
 
