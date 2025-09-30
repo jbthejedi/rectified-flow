@@ -80,14 +80,22 @@ def train_test_model(config):
     )
 
     train_dl = DataLoader(
-        train_ds, batch_size=config.batch_size, shuffle=True,
-        num_workers=config.num_workers, pin_memory=True,
-        persistent_workers=True, prefetch_factor=4,
+        train_ds,
+        batch_size=config.batch_size,
+        shuffle=True,
+        num_workers=config.num_workers,
+        pin_memory=True,
+        persistent_workers=False,
+        # prefetch_factor=4,
     )
     val_dl = DataLoader(
-        val_ds, batch_size=config.batch_size, shuffle=False,
-        num_workers=config.num_workers, pin_memory=True,
-        persistent_workers=True, prefetch_factor=4,
+        val_ds,
+        batch_size=config.batch_size,
+        shuffle=False,
+        num_workers=config.num_workers,
+        pin_memory=True,
+        persistent_workers=False,
+        # prefetch_factor=4,
     )
 
     #### DIFFUSERS/AUTOENCODERKL #######
