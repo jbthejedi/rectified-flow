@@ -93,6 +93,8 @@ aekl.eval()
 [setattr(p, "requires_grad", False) for p in aekl.parameters()]
 
 langvae = LangVAE.load_from_hf_hub("neuro-symbolic-ai/eb-langvae-bert-base-cased-gpt2-l128").to(device)
+for n, p in langvae.named_parameters():
+    print(n, p.device)
 langvae.eval()
 [setattr(p, "requires_grad", False) for p in langvae.parameters()]
 
@@ -140,6 +142,7 @@ with torch.inference_mode():
             #     zs.append(z_i)
             # z = torch.cat(zs, dim=0)
             z, _ = langvae.encode_z(token_ids)
+            print("encode_z output device:", z.device)
             # z, _ = langvae.encode_z(token_ids)  # (B, latent_dim) on GPU
         txt_latents = z
         t3=time.time()
@@ -161,7 +164,7 @@ with torch.inference_mode():
         tqdm.write(f"compute img latents {t2b-t2a}")
         tqdm.write(f"langvae tokenizer {t2-t2b}")
         tqdm.write(f"t_tok {t2-t1}")
-        tqdm.write(f"t_gpu {t3-t2}")
+        tqdm.write(f"text encode {t3-t2}")
         tqdm.write(f"t_write {t4-t3}")
         t_load += (t1-t0); t_tok += (t2-t1); t_gpu += (t3-t2); t_write += (t4-t3)
 
