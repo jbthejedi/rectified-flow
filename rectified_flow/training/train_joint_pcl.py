@@ -102,9 +102,8 @@ def train_test_model(config):
             model.train()
             train_loss = 0.0
             tqdm.write("Pre Iter Fetch")
-            # for (images, token_ids, attn_mask), t_fetch in timed_iter(train_dl):
-                # x_img_1, x_txt_1, _caps = batch  # caps optional
-            for x_img_1, x_txt_1, _caps in pbar:
+            for (x_img_1, x_txt_1, caps_), t_fetch in timed_iter(pbar):
+                print(f"Time fetch Train {t_fetch}")
                 v_pred, u_pred, v_star_img, u_star_txt = compute_data_from_latents(x_img_1, x_txt_1, model, device)
                 loss = F.mse_loss(v_pred, v_star_img) + F.mse_loss(u_pred, u_star_txt)
 
@@ -120,9 +119,8 @@ def train_test_model(config):
             model.eval()
             with torch.no_grad():
                 val_loss = 0.0
-                # for batch, t_fetch in timed_iter(train_dl):
-                    # x_img_1, x_txt_1, _caps = batch  # caps optional
-                for x_img_1, x_txt_1, _caps in pbar:
+                for (x_img_1, x_txt_1, caps_), t_fetch in timed_iter(pbar):
+                    print(f"Time fetch Val {t_fetch}")
                     v_pred, u_pred, v_star_img, u_star_txt = compute_data_from_latents(x_img_1, x_txt_1, model, device)
                     loss = F.mse_loss(v_pred, v_star_img) + F.mse_loss(u_pred, u_star_txt)
                 
