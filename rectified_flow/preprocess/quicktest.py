@@ -27,6 +27,8 @@ os.makedirs(OUT_DIR, exist_ok=True)
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
 langvae = LangVAE.load_from_hf_hub("neuro-symbolic-ai/eb-langvae-bert-base-cased-gpt2-l128").to(device)
+langvae.encoder.to(device)
+langvae.decoder.to(device)   
 for n, p in langvae.named_parameters():
     print(n, p.device)
 langvae.eval()
