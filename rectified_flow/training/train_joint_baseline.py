@@ -127,13 +127,9 @@ def train_test_model(config):
         with tqdm(train_dl, desc="Training") as pbar:
             model.train()
             train_loss = 0.0
-            tqdm.write("Pre Iter Fetch")
-            for (images, token_ids, attn_mask), t_fetch in timed_iter(train_dl):
-            # for images, token_ids, attn_mask in pbar:
-                tqdm.write(f"[fetch] {t_fetch:.3f}s")
-                v_pred, u_pred, v_star_img, u_star_txt = compute_data(images, token_ids, attn_mask,
-                                                                      aekl, langvae, model, device)
-
+            # tqdm.write("Pre Iter Fetch")
+            for (x_img_1, x_txt_1, caps_), t_fetch in timed_iter(pbar):
+                v_pred, u_pred, v_star_img, u_star_txt = compute_data_from_latents(x_img_1, x_txt_1, model, device)
                 loss = F.mse_loss(v_pred, v_star_img) + F.mse_loss(u_pred, u_star_txt)
 
                 optimizer.zero_grad()
@@ -148,16 +144,15 @@ def train_test_model(config):
             model.eval()
             with torch.no_grad():
                 val_loss = 0.0
-                for images, token_ids, attn_mask in pbar:
-                    v_pred, u_pred, v_star_img, u_star_txt = compute_data(images, token_ids, attn_mask,
-                                                                          aekl, langvae, model, device)
-
+                for (x_img_1, x_txt_1, caps_), t_fetch in timed_iter(pbar):
+                    # print(f"Time fetch Val {t_fetch}")
+                    v_pred, u_pred, v_star_img, u_star_txt = compute_data_from_latents(x_img_1, x_txt_1, model, device)
                     loss = F.mse_loss(v_pred, v_star_img) + F.mse_loss(u_pred, u_star_txt)
+                
                     val_loss += loss.item()
                     
             val_loss /= len(val_dl)
             tqdm.write(f"Epoch {epoch}: Val Loss = {val_loss:.4f}")
-
         with torch.no_grad():
             model.eval()
             imgs, sentences = sample_joint_batch_vae(model, aekl, langvae, batch_size=4,
