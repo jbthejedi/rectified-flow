@@ -1,6 +1,7 @@
 # rectified_flow/preprocess/test_gpu.py
 import time, torch, torch.nn.functional as F
 assert torch.cuda.is_available()
+from tqdm import tqdm
 torch.backends.cudnn.benchmark = True
 
 device = "cuda"
@@ -17,7 +18,7 @@ for _ in range(10):
 torch.cuda.synchronize()
 
 t0 = time.time()
-for _ in range(iters):
+for _ in tqdm(range(iters)):
     y = F.conv2d(x, w, padding=1)
 torch.cuda.synchronize()
 t1 = time.time()
