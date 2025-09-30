@@ -203,6 +203,7 @@ def compute_data(images, token_ids, attn_mask, aekl, langvae : LangVAE, model, d
 
     # Encode Image
     t1 = time.time()
+    tqdm.write("start img encode") 
     amp_dtype = torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
     with torch.no_grad():
         with torch.autocast(device_type="cuda", dtype=amp_dtype):
