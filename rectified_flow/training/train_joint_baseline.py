@@ -203,7 +203,7 @@ def compute_data(images, token_ids, attn_mask, aekl, langvae : LangVAE, model, d
 
     # Encode Image
     t1 = time.time()
-    tqdm.write("start img encode") 
+    # tqdm.write("start img encode") 
     amp_dtype = torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
     with torch.no_grad():
         with torch.autocast(device_type="cuda", dtype=amp_dtype):
@@ -220,7 +220,7 @@ def compute_data(images, token_ids, attn_mask, aekl, langvae : LangVAE, model, d
             z, _ = langvae.encode_z(token_ids)
             tqdm.write(f"encode_z output device: {z.device}")
     x_txt_1 = z                                                                      # (B, TH)
-    tqdm.write(f"encode text {time.time() - t2}") 
+    # tqdm.write(f"encode text {time.time() - t2}") 
 
     # outputs = bert(input_ids=token_ids, attention_mask=attn_mask)        
     # x_txt_1 = outputs.pooler_output                                                # (B, TH)
@@ -242,14 +242,14 @@ def compute_data(images, token_ids, attn_mask, aekl, langvae : LangVAE, model, d
     # Target velocity 
     v_star_img = x_img_t - x_img_0                                                  # (B, IH, 8, 8)
     u_star_txt = x_txt_t - x_txt_0                                                  # (B, L, TH)
-    tqdm.write(f"tensor math {time.time() - t3}") 
+    # tqdm.write(f"tensor math {time.time() - t3}") 
 
     # assert_latents_shapes_devices(x_img_1, x_txt_1, x_img_t, x_txt_t, v_star_img, u_star_txt, device)
 
     # Predict velocity
     t4 = time.time()
     v_pred, u_pred = model(x_img_t, x_txt_t, t)
-    tqdm.write(f"prediction {time.time() - t4}") 
+    # tqdm.write(f"prediction {time.time() - t4}") 
     # assert_model_outputs(v_pred, u_pred, v_star_img, u_star_txt, device)
 
 
