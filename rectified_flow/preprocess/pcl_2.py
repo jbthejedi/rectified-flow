@@ -8,6 +8,9 @@ from omegaconf import OmegaConf
 from diffusers import AutoencoderKL
 from langvae import LangVAE
 
+torch.backends.cuda.matmul.allow_tf32 = True
+torch.backends.cudnn.allow_tf32 = True
+
 # ---------- Config ----------
 env = os.environ.get("ENV", "local")
 cfg = OmegaConf.load("config/base.yaml")
@@ -16,7 +19,7 @@ cfg = OmegaConf.merge(cfg, OmegaConf.load(f"config/{env}.yaml"))
 IMAGES_ROOT   = f"{cfg.data_root}/flickr30k/Images"
 CAPTIONS_FILE = f"{cfg.data_root}/flickr30k/captions.txt"
 OUT_DIR       = "./precomputed_latents"
-BATCH_SIZE    = 128  # tune for your VRAM
+BATCH_SIZE    = 16 # tune for your VRAM
 NUM_WORKERS   = 8    # tune for your CPU
 MAX_LEN       = 77
 
@@ -131,12 +134,12 @@ with torch.inference_mode():
         # text latents (batched)
         amp_dtype = torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
         with torch.autocast(device_type="cuda", dtype=amp_dtype):
-            zs = []
-            for i in range(0, token_ids.size(0), 16):  # microbatch 16
-                z_i, _ = langvae.encode_z(token_ids[i:i+16])
-                zs.append(z_i)
-            z = torch.cat(zs, dim=0)
-            # z, _ = langvae.encode_z(token_ids)
+            # zs = []
+            # for i in range(0, token_ids.size(0), 16):  # microbatch 16
+            #     z_i, _ = langvae.encode_z(token_ids[i:i+16])
+            #     zs.append(z_i)
+            # z = torch.cat(zs, dim=0)
+            z, _ = langvae.encode_z(token_ids)
             # z, _ = langvae.encode_z(token_ids)  # (B, latent_dim) on GPU
         txt_latents = z
         t3=time.time()
