@@ -191,6 +191,7 @@ def train_test_model(config):
         if (epoch % config.inference_peek_num == 0) and config.write_inference_samples:
             tqdm.write("Logging inference samples to wandb")
             images = wandb.Image(grid, caption=f"Epoch {epoch}")
+            print(f"len(sent) {len(sentences)}")
             table = wandb.Table(
                     columns=["sample_id", "sentence"],
                     data=[[i, s] for i, s in enumerate(sentences)]
@@ -327,6 +328,7 @@ def sample_joint_batch_vae(model, aekl, langvae, batch_size=4, num_steps=200, im
 
     # --- Decode text latent → sentences ---
     sentences = langvae.decode_sentences(x_txt)
+    print(f"len(sentences) {len(sentences)}")
     print(f"sentences {sentences}")
 
     return imgs, sentences
