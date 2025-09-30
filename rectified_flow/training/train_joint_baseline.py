@@ -1,9 +1,9 @@
 import os
 os.environ["TOKENIZERS_PARALLELISM"] = "true"
-torch.backends.cuda.matmul.allow_tf32 = True
-torch.backends.cudnn.allow_tf32 = True
 
 import torch
+torch.backends.cuda.matmul.allow_tf32 = True
+torch.backends.cudnn.allow_tf32 = True
 
 import torch.nn.functional as F
 import torch.optim as optim
