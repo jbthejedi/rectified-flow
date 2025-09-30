@@ -161,7 +161,6 @@ class Flickr30kDataset(Dataset):
         return img, caption
 
 
-
 class LangVAECollator:
     def __init__(self, tokenizer, max_length=32):
         self.tokenizer = tokenizer # use LangVAE’s tokenizer
@@ -185,3 +184,38 @@ class LangVAECollator:
         attention_mask = tokenized["attention_mask"]
 
         return images, input_ids, attention_mask
+
+
+class Flickr30kTokenized(Dataset):
+    def __init__(self, images_root, captions_file, transform, max_length=77):
+        self.images_root = images_root
+        self.transform = transform
+        self.max_length = max_length
+        self.captions = {}
+        with Path(captions_file).open("r") as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith("#"): continue
+                parts = line.split(None, 1)
+                if len(parts) < 2: continue
+                img_id, caption = parts
+                filename = img_id.split("#")[0].strip().strip('"').strip(',')
+                self.captions.setdefault(filename, []).append(caption)
+        self.filenames = sorted(self.captions.keys())
+
+    def __len__(self): return len(self.filenames)
+
+    def __getitem__(self, idx):
+        fn = self.filenames[idx]
+        img = Image.open(os.path.join(self.images_root, fn)).convert("RGB")
+        if self.transform: img = self.transform(img)
+        caption = random.choice(self.captions[fn])
+
+        # tokenize inside the worker
+        tok = _worker_tokenizer(
+            caption, padding="max_length", truncation=True,
+            max_length=self.max_length, return_tensors="pt"
+        )
+        input_ids = tok["input_ids"].squeeze(0)         # (L,)
+        attention_mask = tok["attention_mask"].squeeze(0)
+        return img, input_ids, attention_mask

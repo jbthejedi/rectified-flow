@@ -15,7 +15,7 @@ import torchvision.utils as vutils
 from omegaconf import OmegaConf
 from tqdm import tqdm
 from rectified_flow.models.image_text import *
-from rectified_flow.data.datamodule import ProjectData, LangVAECollator
+from rectified_flow.data.datamodule import *
 from diffusers import AutoencoderKL
 
 from langvae import LangVAE
@@ -47,17 +47,52 @@ def train_test_model(config):
     for p in langvae.parameters(): p.requires_grad = False
     langvae.encoder.to(device); langvae.decoder.to(device)
 
-    # Build collator with its tokenizer
-    print(f"Device pre collator {device}")
-    collator = LangVAECollator(
-        tokenizer=langvae.decoder.tokenizer,
-        max_length=77,
-    )
+    # # Build collator with its tokenizer
+    # print(f"Device pre collator {device}")
+    # collator = LangVAECollator(
+    #     tokenizer=langvae.decoder.tokenizer,
+    #     max_length=77,
+    # )
 
-    ##### DATA ######
-    data = ProjectData(config, collator)
-    print(f"Len Train: {len(data.train_dl)}")
-    print(f"Len Val: {len(data.val_dl)}")
+    # ##### DATA ######
+    # data = ProjectData(config, collator)
+    # print(f"Len Train: {len(data.train_dl)}")
+    # print(f"Len Val: {len(data.val_dl)}")
+
+    mean = [0.444, 0.421, 0.384]
+    std = [0.275, 0.267, 0.276]
+    train_tf = T.Compose([
+        T.CenterCrop(224),
+        T.Resize(config.image_size),
+        T.ToTensor(),
+        T.Normalize(mean, std),
+    ])
+    val_tf = T.Compose([ T.CenterCrop(224), T.Resize(config.image_size), T.ToTensor(), T.Normalize(mean, std),
+    ])
+
+    images_root = f"{config.data_root}/flickr30k/Images",
+    captions_file = f"{config.data_root}/flickr30k/captions.txt",
+    train_ds = Flickr30kTokenized(images_root, captions_file,transform=train_tf, max_length=77)
+    val_ds   = Flickr30kTokenized(images_root, captions_file, transform=val_tf,   max_length=77)
+
+
+    def _worker_init_fn(_):
+        global _worker_tokenizer
+        # one tokenizer per worker (fast Rust backend)
+        _worker_tokenizer = langvae.decoder.tokenizer
+
+    train_dl = DataLoader(
+        train_ds, batch_size=config.batch_size, shuffle=True,
+        num_workers=config.num_workers, pin_memory=True,
+        persistent_workers=True, prefetch_factor=4,
+        worker_init_fn=_worker_init_fn,
+    )
+    val_dl = DataLoader(
+        val_ds, batch_size=config.batch_size, shuffle=False,
+        num_workers=config.num_workers, pin_memory=True,
+        persistent_workers=True, prefetch_factor=4,
+        worker_init_fn=_worker_init_fn,
+    )
 
     #### DIFFUSERS/AUTOENCODERKL #######
     print("Load AEKL")
@@ -93,11 +128,11 @@ def train_test_model(config):
     best_val_loss = float("inf")
     for epoch in range(1, config.n_epochs+1):
         tqdm.write(f"Epoch {epoch}/{config.n_epochs}")
-        with tqdm(data.train_dl, desc="Training") as pbar:
+        with tqdm(train_dl, desc="Training") as pbar:
             model.train()
             train_loss = 0.0
             tqdm.write("Pre Iter Fetch")
-            for (images, token_ids, attn_mask), t_fetch in timed_iter(data.train_dl):
+            for (images, token_ids, attn_mask), t_fetch in timed_iter(train_dl):
             # for images, token_ids, attn_mask in pbar:
                 tqdm.write(f"[fetch] {t_fetch:.3f}s")
                 v_pred, u_pred, v_star_img, u_star_txt = compute_data(images, token_ids, attn_mask,
@@ -114,7 +149,7 @@ def train_test_model(config):
             train_loss /= len(data.train_dl)
             tqdm.write(f"Epoch {epoch}: Train Loss = {train_loss:.4f}")
 
-        with tqdm(data.val_dl, desc="Validation") as pbar:
+        with tqdm(val_dl, desc="Validation") as pbar:
             model.eval()
             with torch.no_grad():
                 val_loss = 0.0
@@ -125,7 +160,7 @@ def train_test_model(config):
                     loss = F.mse_loss(v_pred, v_star_img) + F.mse_loss(u_pred, u_star_txt)
                     val_loss += loss.item()
                     
-            val_loss /= len(data.val_dl)
+            val_loss /= len(val_dl)
             tqdm.write(f"Epoch {epoch}: Val Loss = {val_loss:.4f}")
 
         with torch.no_grad():
@@ -207,6 +242,7 @@ def assert_grads_flowing(model):
     assert any(p.grad is not None for p in trainable), "No gradients found (did backward run?)"
     # And at least one grad should be non-zero
     assert any((p.grad is not None) and (p.grad.detach().abs().sum() > 0) for p in trainable), "All grads are zero"
+
 
 
 def compute_data(images, token_ids, attn_mask, aekl, langvae : LangVAE, model, device):
