@@ -64,28 +64,37 @@ def train_test_model(config):
     images_root   = f"{config.data_root}/flickr30k/Images"
     captions_file = f"{config.data_root}/flickr30k/captions.txt"
 
-    train_ds = Flickr30kTokenized(
+
+    # --- build ONE base dataset ---
+    base_ds = Flickr30kTokenized(
         images_root=images_root,
         captions_file=captions_file,
         tokenizer_name_or_path=tok_path,
-        transform=train_tf,
+        transform=train_tf,         # you can swap transforms per Subset later
         max_length=77,
     )
-    val_ds = Flickr30kTokenized(
-        images_root=images_root,
-        captions_file=captions_file,
-        tokenizer_name_or_path=tok_path,
-        transform=val_tf,
-        max_length=77,
-    )
+
+    # (optional) small sample BEFORE splitting
     if config.do_small_sample:
-        indices = random.sample(range(len(train_ds)), k=config.sample_size_k)
-        train_ds = Subset(train_ds, indices)
-        print(f"Sampled train {len(train_ds)}")
-        
-        indices = random.sample(range(len(val_ds)), k=config.sample_size_k)
-        val_ds = Subset(val_ds, indices)
-        print(f"Sampled train {len(val_ds)}")
+        import random
+        random.seed(config.seed)
+        idxs = random.sample(range(len(base_ds)), k=config.sample_size_k)
+        base_ds = Subset(base_ds, idxs)
+        print(f"Sampled base_ds: {len(base_ds)}")
+
+    # --- deterministic split ---
+    n = len(base_ds)
+    n_train = int(config.p_train_len * n)
+    g = torch.Generator().manual_seed(getattr(config, "split_seed", 1337))
+    perm = torch.randperm(n, generator=g)
+
+    train_idx = perm[:n_train].tolist()
+    val_idx   = perm[n_train:].tolist()
+
+    train_ds = Subset(base_ds, train_idx)
+    val_ds   = Subset(base_ds, val_idx)
+
+    print(f"train: {len(train_ds)} | val: {len(val_ds)}")
 
     train_dl = DataLoader(
         train_ds,

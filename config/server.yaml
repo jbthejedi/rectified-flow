@@ -7,7 +7,7 @@ dataset_type: 'flickr30k'
 n_epochs: 10
 
 image_size: 64
-batch_size: 32
+batch_size: 512
 normalize_shape: 0.5
 
 num_channels: 4
