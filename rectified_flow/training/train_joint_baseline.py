@@ -38,6 +38,10 @@ def train_test_model(config):
         config=config_dict,
         mode=config.wandb_mode,
     )
+    wandb.define_metric("epoch")
+    wandb.define_metric("*", step_metric="epoch")
+
+    ####   WRITE DIR FOR SENTENCES ######
     out_dir = os.path.join("outputs", "samples")
     os.makedirs(out_dir, exist_ok=True)
 
@@ -157,8 +161,10 @@ def train_test_model(config):
             t1 = time.perf_counter()
             yield batch, (t1 - t0)
 
+    log_dict = {}
     best_val_loss = float("inf")
     for epoch in range(1, config.n_epochs+1):
+        log_dict["epoch"] = epoch
         tqdm.write(f"Epoch {epoch}/{config.n_epochs}")
         with tqdm(train_dl, desc="Training") as pbar:
             model.train()
@@ -204,17 +210,12 @@ def train_test_model(config):
             images = wandb.Image(grid, caption=f"Epoch {epoch}")
             rows = [(int(i), "" if s is None else str(s)) for i, s in enumerate(sentences)]
             write_sentences(sentences, epoch, csv_path)
-            # table = wandb.Table(columns=["sample_id", "sentence"], data=rows)
-            wandb.log({
-                "epoch": epoch,
-                "samples/images": images,
-            }, step=epoch)
+            log_dict = ["samples/images"] = images
 
-        wandb.log({
-            "epoch": epoch,
-            "train/loss": train_loss,
-            "val/loss": val_loss,
-        }, step=epoch)
+        log_dict = ["train/loss"] = train_loss
+        log_dict = ["val/loss"] = val_loss
+        wandb.log(log_dict, step=epoch)
+
         if config.save_model:
             tqdm.write("Saving model")
             best_val_loss = save_and_log_model(model, config, best_val_loss, val_loss)
