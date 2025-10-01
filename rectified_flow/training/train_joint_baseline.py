@@ -77,7 +77,7 @@ def train_test_model(config):
     mean = [0.444, 0.421, 0.384]
     std  = [0.275, 0.267, 0.276]
     train_tf = T.Compose([T.CenterCrop(224), T.Resize(config.image_size), T.ToTensor(), T.Normalize(mean, std)])
-    val_tf   = T.Compose([T.CenterCrop(224), T.Resize(config.image_size), T.ToTensor(), T.Normalize(mean, std)])
+    # val_tf   = T.Compose([T.CenterCrop(224), T.Resize(config.image_size), T.ToTensor(), T.Normalize(mean, std)])
 
     images_root   = f"{config.data_root}/flickr30k/Images"
     captions_file = f"{config.data_root}/flickr30k/captions.txt"
@@ -143,7 +143,11 @@ def train_test_model(config):
     print("Load Model")
     langvae_proj_dim = 128
     # model = BaselineJointModel(txt_dim=langvae_proj_dim, img_dim=4, hidden=256, p_hidden=config.image_size)
-    model = BaselineJointModel(txt_dim=langvae_proj_dim, img_dim=4, hidden=256, p_hidden=64)
+    IMAGE_SHAPE = (config.image_size//8, config.image_size//8)
+    IH = 4
+    model = BaselineJointModel(txt_dim=langvae_proj_dim, img_dim=4,
+                               hidden=256, p_hidden=64,
+                               img_shape=IMAGE_SHAPE)
     if config.compile:
         print("Compile Mode = TRUE")
         model = torch.compile(model)
@@ -198,7 +202,7 @@ def train_test_model(config):
         with torch.no_grad():
             model.eval()
             imgs, sentences = sample_joint_batch_vae(model, aekl, langvae, batch_size=4,
-                                                 num_steps=50, img_shape=(4, 8, 8))
+                                                     num_steps=50, img_shape=(IH, *IMAGE_SHAPE))
         grid = vutils.make_grid(imgs.cpu(), nrow=4, normalize=True, pad_value=1.0)
         if config.local_visualization:
             plt.figure(figsize=(3, 3))
@@ -229,11 +233,13 @@ def train_test_model(config):
 
     print("Done Training")
 
+
 def write_sentences(sentences, epoch, csv_path):
     rows = [(epoch, i, (s or "").replace("\n", " ").strip()) for i, s in enumerate(sentences)]
     with open(csv_path, "a", newline="", encoding="utf-8") as f:
         writer = csv.writer(f, quoting=csv.QUOTE_MINIMAL)
         writer.writerows(rows)
+
 
 def compute_data(images, token_ids, attn_mask, aekl, langvae : LangVAE, model, device):
     images = images.to(device, non_blocking=True)
@@ -255,6 +261,10 @@ def compute_data(images, token_ids, attn_mask, aekl, langvae : LangVAE, model, d
     with torch.no_grad():
         with torch.autocast(device_type="cuda", dtype=amp_dtype):
             z, _ = langvae.encode_z(token_ids)
+
+            # temp = langvae.encoder
+            # temp.encoder(token_ids)
+            # z = None
     x_txt_1 = z                                                                      # (B, TH)
 
     # outputs = bert(input_ids=token_ids, attention_mask=attn_mask)        
@@ -277,8 +287,8 @@ def compute_data(images, token_ids, attn_mask, aekl, langvae : LangVAE, model, d
     # Target velocity 
     v_star_img = x_img_1 - x_img_0                                                  # (B, IH, 8, 8)
     u_star_txt = x_txt_1 - x_txt_0                                                  # (B, TH)
-    # tqdm.write(f"tensor math {time.time() - t3}") 
-    # === NEW: cast to model dtype ===
+
+    # === CAST TO MODEL DTYPE ===
     model_dtype = next(model.parameters()).dtype  # usually torch.float32
     x_img_t    = x_img_t.to(model_dtype)
     x_txt_t    = x_txt_t.to(model_dtype)
@@ -286,14 +296,9 @@ def compute_data(images, token_ids, attn_mask, aekl, langvae : LangVAE, model, d
     u_star_txt = u_star_txt.to(model_dtype)
     t          = t.to(model_dtype)
 
-    # assert_latents_shapes_devices(x_img_1, x_txt_1, x_img_t, x_txt_t, v_star_img, u_star_txt, device)
-
     # Predict velocity
     t4 = time.time()
     v_pred, u_pred = model(x_img_t, x_txt_t, t)
-    # tqdm.write(f"prediction {time.time() - t4}") 
-    # assert_model_outputs(v_pred, u_pred, v_star_img, u_star_txt, device)
-
 
     return v_pred, u_pred, v_star_img, u_star_txt
 
@@ -326,7 +331,7 @@ def sample_joint_batch_vae(model, aekl, langvae, batch_size=4, num_steps=200, im
     device = next(model.parameters()).device
     txt_dim = langvae.latent_dim 
 
-    x_img = torch.randn(batch_size, *img_shape, device=device)   # (B, 4, 8, 8)
+    x_img = torch.randn(batch_size, *img_shape, device=device)   # (B, 4, H//8, W//8)
     x_txt = torch.randn(batch_size, txt_dim, device=device)      # (B, 128)
 
     t_vals = torch.linspace(1.0, 0.0, num_steps, device=device)
@@ -340,11 +345,10 @@ def sample_joint_batch_vae(model, aekl, langvae, batch_size=4, num_steps=200, im
         x_img = x_img + v_pred_img * dt
         x_txt = x_txt + u_pred_txt * dt
 
-    imgs = aekl.decode(x_img / aekl.config.scaling_factor).sample  # (B,3,H,W)
+    imgs = aekl.decode(x_img / aekl.config.scaling_factor).sample  # (B, 3, H, W)
     imgs = (imgs.clamp(-1, 1) + 1) / 2  # map to [0,1]
     sentences = langvae.decode_sentences(x_txt)
     return imgs, sentences
-
 
 
 def main():

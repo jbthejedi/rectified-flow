@@ -123,9 +123,7 @@ class BaselineJointModel(nn.Module):
         )
 
         self.time_emb = TimeEmbedding(time_dim=128)
-        # self.t_proj_im = nn.Linear(time_dim, H*W)
-        # self.t_proj_txt = nn.Linear(time_dim, txt_token_dim)
-        self.t_proj = nn.Linear(time_dim, p_hidden)
+        self.time_proj = nn.Linear(time_dim, p_hidden)
 
         self.img_head = nn.Linear(hidden, H*W*img_dim)
         self.txt_head = nn.Linear(hidden, txt_dim)
@@ -140,21 +138,20 @@ class BaselineJointModel(nn.Module):
         _, TH = x_txt_t.shape
 
         #### Time Embedding ####
-        t_emb = self.time_emb(t.view(B))                                   # (B, time_dim)
-        t_emb_im = self.t_proj(t_emb)                                      # (B, P)
-        t_emb_txt = self.t_proj(t_emb)                                     # (B, P)
+        time_emb = self.time_emb(t.view(B))                                   # (B, time_dim)
+        time_emb_im = self.time_proj(time_emb)                                      # (B, P)
+        time_emb_txt = self.time_proj(time_emb)                                     # (B, P)
 
         #### Project Image ####
         img_tokens = x_img_t.reshape(B, -1)                                # (B, H*W*IH)
-        img_tokens = self.img_proj(img_tokens) + t_emb_im                  # (B, P)
+        img_tokens = self.img_proj(img_tokens) + time_emb_im                  # (B, P)
 
         #### Project Text ####
-        txt_tokens = self.txt_proj(x_txt_t) + t_emb_txt                    # (B, P)
+        txt_tokens = self.txt_proj(x_txt_t) + time_emb_txt                    # (B, P)
 
         #### FUSE ####
         cat = torch.cat([img_tokens, txt_tokens], dim=1)                   # (B, P+P)
         fusion = self.fusion(cat)                                          # (B, hidden)
-        
         v_img = self.img_head(fusion).view(B, IH, H, W)                    # (B, IH*H*W)
         u_txt = self.txt_head(fusion)                                      # (B, L)
 
