@@ -4,6 +4,7 @@ os.environ["TOKENIZERS_PARALLELISM"] = "true"
 import torch, json
 torch.backends.cuda.matmul.allow_tf32 = True
 torch.backends.cudnn.allow_tf32 = True
+import random
 
 import time
 import torch.nn.functional as F
@@ -88,8 +89,6 @@ def train_test_model(config):
 
     # (optional) small sample BEFORE splitting
     if config.do_small_sample:
-        import random
-        random.seed(config.seed)
         idxs = random.sample(range(len(base_ds)), k=config.sample_size_k)
         base_ds = Subset(base_ds, idxs)
         print(f"Sampled base_ds: {len(base_ds)}")
@@ -193,7 +192,7 @@ def train_test_model(config):
             model.eval()
             imgs, sentences = sample_joint_batch_vae(model, aekl, langvae, batch_size=4,
                                                  num_steps=50, img_shape=(4, 8, 8))
-
+            print(f"imgs.shape {imgs.shape}")
         grid = vutils.make_grid(imgs.cpu(), nrow=4, normalize=True, pad_value=1.0)
         if config.local_visualization:
             plt.figure(figsize=(3, 3))
@@ -344,6 +343,7 @@ def main():
     print("Configuration loaded")
     config.device, config.env = device, env
     print(f"Seed {config.seed} Device {config.device}")
+    random.seed(config.seed)
 
     if config.device == 'cuda':
         print("Set float32_matmul_precision high")
