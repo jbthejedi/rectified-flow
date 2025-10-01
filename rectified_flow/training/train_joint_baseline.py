@@ -37,6 +37,7 @@ def train_test_model(config):
         name=config.name,
         config=config_dict,
         mode=config.wandb_mode,
+        settings=wandb.Settings(start_method="thread"),
     )
     wandb.define_metric("epoch")
     wandb.define_metric("*", step_metric="epoch")
@@ -211,10 +212,12 @@ def train_test_model(config):
             rows = [(int(i), "" if s is None else str(s)) for i, s in enumerate(sentences)]
             write_sentences(sentences, epoch, csv_path)
             log_dict = ["samples/images"] = images
+            wandb.run.summary["samples/last_image"] = images
 
         log_dict = ["train/loss"] = train_loss
         log_dict = ["val/loss"] = val_loss
-        wandb.log(log_dict, step=epoch)
+        wandb.log(log_dict, step=epoch, commit=True)
+        wandb.flush()
 
         if config.save_model:
             tqdm.write("Saving model")
