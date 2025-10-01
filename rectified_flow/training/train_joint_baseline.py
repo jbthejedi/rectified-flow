@@ -206,12 +206,17 @@ def train_test_model(config):
             plt.axis("off")
             plt.show()
         if (epoch % config.inference_peek_num == 0) and config.write_inference_samples:
+            # Images
             images = wandb.Image(grid, caption=f"Epoch {epoch}")
             log_dict["samples/images"] = images
+
+            # Sentences
             rows = [(int(i), "" if s is None else str(s)) for i, s in enumerate(sentences)]
             table = wandb.Table(columns=["sample_id", "sentence"], data=rows)
             write_sentences(sentences, epoch, csv_path)
             log_dict["samples/sentences"] = table
+
+            # Summary
             wandb.run.summary["samples/last_image"] = images
 
         log_dict["train/loss"] = train_loss
@@ -244,17 +249,13 @@ def compute_data(images, token_ids, attn_mask, aekl, langvae : LangVAE, model, d
         with torch.autocast(device_type="cuda", dtype=amp_dtype):
             posterior = aekl.encode(images).latent_dist
         x_img_1 = posterior.mean * aekl.config.scaling_factor          # (B,4,8,8)
-    # tqdm.write(f"encode img {time.time() - t1}") 
     
     # Encode text
-    # TODO not using attn_mask might throw things off.
     t2 = time.time()
     with torch.no_grad():
         with torch.autocast(device_type="cuda", dtype=amp_dtype):
             z, _ = langvae.encode_z(token_ids)
-            # tqdm.write(f"encode_z output device: {z.device}")
     x_txt_1 = z                                                                      # (B, TH)
-    # tqdm.write(f"encode text {time.time() - t2}") 
 
     # outputs = bert(input_ids=token_ids, attention_mask=attn_mask)        
     # x_txt_1 = outputs.pooler_output                                                # (B, TH)
