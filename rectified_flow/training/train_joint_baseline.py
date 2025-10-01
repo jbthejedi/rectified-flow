@@ -211,11 +211,11 @@ def train_test_model(config):
             images = wandb.Image(grid, caption=f"Epoch {epoch}")
             rows = [(int(i), "" if s is None else str(s)) for i, s in enumerate(sentences)]
             write_sentences(sentences, epoch, csv_path)
-            log_dict = ["samples/images"] = images
+            log_dict["samples/images"] = images
             wandb.run.summary["samples/last_image"] = images
 
-        log_dict = ["train/loss"] = train_loss
-        log_dict = ["val/loss"] = val_loss
+        log_dict["train/loss"] = train_loss
+        log_dict["val/loss"] = val_loss
         wandb.log(log_dict, step=epoch, commit=True)
         wandb.flush()
 
