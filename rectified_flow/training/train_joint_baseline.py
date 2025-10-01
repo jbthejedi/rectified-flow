@@ -200,6 +200,7 @@ def train_test_model(config):
             plt.axis("off")
             plt.show()
         if (epoch % config.inference_peek_num == 0) and config.write_inference_samples:
+            print("Writing sentences and imgs")
             images = wandb.Image(grid, caption=f"Epoch {epoch}")
             rows = [(int(i), "" if s is None else str(s)) for i, s in enumerate(sentences)]
             write_sentences(sentences, epoch, csv_path)
