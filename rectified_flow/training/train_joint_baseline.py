@@ -217,7 +217,6 @@ def train_test_model(config):
         log_dict["train/loss"] = train_loss
         log_dict["val/loss"] = val_loss
         wandb.log(log_dict, step=epoch, commit=True)
-        wandb.flush()
 
         if config.save_model:
             tqdm.write("Saving model")
