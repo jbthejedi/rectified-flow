@@ -199,7 +199,6 @@ def train_test_model(config):
             model.eval()
             imgs, sentences = sample_joint_batch_vae(model, aekl, langvae, batch_size=4,
                                                  num_steps=50, img_shape=(4, 8, 8))
-            print(f"imgs.shape {imgs.shape}")
         grid = vutils.make_grid(imgs.cpu(), nrow=4, normalize=True, pad_value=1.0)
         if config.local_visualization:
             plt.figure(figsize=(3, 3))
@@ -207,11 +206,12 @@ def train_test_model(config):
             plt.axis("off")
             plt.show()
         if (epoch % config.inference_peek_num == 0) and config.write_inference_samples:
-            print("Writing sentences and imgs")
             images = wandb.Image(grid, caption=f"Epoch {epoch}")
-            rows = [(int(i), "" if s is None else str(s)) for i, s in enumerate(sentences)]
-            write_sentences(sentences, epoch, csv_path)
             log_dict["samples/images"] = images
+            rows = [(int(i), "" if s is None else str(s)) for i, s in enumerate(sentences)]
+            table = wandb.Table(columns=["sample_id", "sentence"], data=rows)
+            write_sentences(sentences, epoch, csv_path)
+            log_dict["samples/sentences"] = table
             wandb.run.summary["samples/last_image"] = images
 
         log_dict["train/loss"] = train_loss
@@ -229,7 +229,6 @@ def write_sentences(sentences, epoch, csv_path):
     with open(csv_path, "a", newline="", encoding="utf-8") as f:
         writer = csv.writer(f, quoting=csv.QUOTE_MINIMAL)
         writer.writerows(rows)
-    print(f"[local] wrote {len(rows)} rows to {csv_path}")
 
 def compute_data(images, token_ids, attn_mask, aekl, langvae : LangVAE, model, device):
     images = images.to(device, non_blocking=True)
