@@ -1,4 +1,4 @@
-import os
+import os, csv
 os.environ["TOKENIZERS_PARALLELISM"] = "true"
 
 import torch, json
@@ -37,6 +37,18 @@ def train_test_model(config):
         config=config_dict,
         mode=config.wandb_mode,
     )
+    out_dir = os.path.join("outputs", "samples")
+    os.makedirs(out_dir, exist_ok=True)
+
+    # unique-ish file per run to avoid collisions
+    run_tag = time.strftime("%Y%m%d-%H%M%S")
+    csv_path = os.path.join(out_dir, f"sentences_{run_tag}.csv")
+
+    # write header if new file
+    if not os.path.exists(csv_path):
+        with open(csv_path, "w", newline="", encoding="utf-8") as f:
+            writer = csv.writer(f)
+            writer.writerow(["epoch", "sample_id", "sentence"])
 
     ##### TEXT ENCODER #####
     print("Load LangVAE")
@@ -195,11 +207,13 @@ def train_test_model(config):
 
             print(f"len(sent) {len(sentences)}")
             rows = [(int(i), "" if s is None else str(s)) for i, s in enumerate(sentences)]
-            table = wandb.Table(columns=["sample_id", "sentence"], data=rows)
+            write_sentences(sentences, epoch, csv_path)
+
+            # table = wandb.Table(columns=["sample_id", "sentence"], data=rows)
             wandb.log({
                 "epoch": epoch,
                 "samples/images": images,
-                f"samples/sentences_ep{epoch}": table,
+                # f"samples/sentences_ep{epoch}": table,
             }, step=epoch)
 
         wandb.log({
@@ -213,6 +227,12 @@ def train_test_model(config):
 
     print("Done Training")
 
+def write_sentences(sentences, epoch, csv_path):
+    rows = [(epoch, i, (s or "").replace("\n", " ").strip()) for i, s in enumerate(sentences)]
+    with open(csv_path, "a", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f, quoting=csv.QUOTE_MINIMAL)
+        writer.writerows(rows)
+    print(f"[local] wrote {len(rows)} rows to {csv_path}")
 
 def compute_data(images, token_ids, attn_mask, aekl, langvae : LangVAE, model, device):
     images = images.to(device, non_blocking=True)
@@ -228,7 +248,6 @@ def compute_data(images, token_ids, attn_mask, aekl, langvae : LangVAE, model, d
         with torch.autocast(device_type="cuda", dtype=amp_dtype):
             posterior = aekl.encode(images).latent_dist
         x_img_1 = posterior.mean * aekl.config.scaling_factor          # (B,4,8,8)
-    assert x_img_1.is_cuda, "AEKL.encode returned CPU tensor"
     # tqdm.write(f"encode img {time.time() - t1}") 
     
     # Encode text

@@ -29,10 +29,10 @@ train_model: True
 
 compile: False
 do_small_sample: True
-sample_size_k: 3
+sample_size_k: 2
 
 summary: False
 
-inference_peek_num: 2
+inference_peek_num: 1
 local_visualization: False
 write_inference_samples: True
