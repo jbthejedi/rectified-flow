@@ -278,6 +278,13 @@ def compute_data(images, token_ids, attn_mask, aekl, langvae : LangVAE, model, d
     v_star_img = x_img_1 - x_img_0                                                  # (B, IH, 8, 8)
     u_star_txt = x_txt_1 - x_txt_0                                                  # (B, TH)
     # tqdm.write(f"tensor math {time.time() - t3}") 
+    # === NEW: cast to model dtype ===
+    model_dtype = next(model.parameters()).dtype  # usually torch.float32
+    x_img_t    = x_img_t.to(model_dtype)
+    x_txt_t    = x_txt_t.to(model_dtype)
+    v_star_img = v_star_img.to(model_dtype)
+    u_star_txt = u_star_txt.to(model_dtype)
+    t          = t.to(model_dtype)
 
     # assert_latents_shapes_devices(x_img_1, x_txt_1, x_img_t, x_txt_t, v_star_img, u_star_txt, device)
 
