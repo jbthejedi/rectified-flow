@@ -4,7 +4,7 @@ env: server
 
 dataset_type: 'flickr30k'
 
-n_epochs: 10
+n_epochs: 40
 
 image_size: 64
 batch_size: 512

@@ -201,19 +201,13 @@ def train_test_model(config):
             plt.axis("off")
             plt.show()
         if (epoch % config.inference_peek_num == 0) and config.write_inference_samples:
-            tqdm.write("Logging inference samples to wandb")
-
             images = wandb.Image(grid, caption=f"Epoch {epoch}")
-
-            print(f"len(sent) {len(sentences)}")
             rows = [(int(i), "" if s is None else str(s)) for i, s in enumerate(sentences)]
             write_sentences(sentences, epoch, csv_path)
-
             # table = wandb.Table(columns=["sample_id", "sentence"], data=rows)
             wandb.log({
                 "epoch": epoch,
                 "samples/images": images,
-                # f"samples/sentences_ep{epoch}": table,
             }, step=epoch)
 
         wandb.log({
@@ -320,37 +314,25 @@ def save_and_log_model(model, config, best_val_loss, val_loss, filename="best-mo
 @torch.no_grad()
 def sample_joint_batch_vae(model, aekl, langvae, batch_size=4, num_steps=200, img_shape=(4, 8, 8)):
     device = next(model.parameters()).device
-    print(f"sample_batch_vae_joint batch_size {batch_size}")
     txt_dim = langvae.latent_dim 
 
-    # --- Start from Gaussian noise in latent space ---
     x_img = torch.randn(batch_size, *img_shape, device=device)   # (B, 4, 8, 8)
     x_txt = torch.randn(batch_size, txt_dim, device=device)      # (B, 128)
-    print(f"x_img.shape {x_img.shape}") 
 
-    # Time discretization (from 1 → 0, backward integration)
     t_vals = torch.linspace(1.0, 0.0, num_steps, device=device)
 
     for i in range(len(t_vals) - 1):
         t = t_vals[i].expand(batch_size, 1)  # (B,1)
         dt = t_vals[i + 1] - t_vals[i]
 
-        # Predict velocities from joint model
         v_pred_img, u_pred_txt = model(x_img, x_txt, t)
 
-        # Euler update
         x_img = x_img + v_pred_img * dt
         x_txt = x_txt + u_pred_txt * dt
 
-    # --- Decode image latent → RGB image ---
     imgs = aekl.decode(x_img / aekl.config.scaling_factor).sample  # (B,3,H,W)
     imgs = (imgs.clamp(-1, 1) + 1) / 2  # map to [0,1]
-
-    # --- Decode text latent → sentences ---
     sentences = langvae.decode_sentences(x_txt)
-    print(f"len(sentences) {len(sentences)}")
-    print(f"sentences {sentences}")
-
     return imgs, sentences
 
 
