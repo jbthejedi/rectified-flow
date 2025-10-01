@@ -274,8 +274,8 @@ def compute_data(images, token_ids, attn_mask, aekl, langvae : LangVAE, model, d
     x_txt_t = (1 - t) * x_txt_0 + t * x_txt_1                                       # (B, TH)
 
     # Target velocity 
-    v_star_img = x_img_t - x_img_0                                                  # (B, IH, 8, 8)
-    u_star_txt = x_txt_t - x_txt_0                                                  # (B, L, TH)
+    v_star_img = x_img_1 - x_img_0                                                  # (B, IH, 8, 8)
+    u_star_txt = x_txt_1 - x_txt_0                                                  # (B, TH)
     # tqdm.write(f"tensor math {time.time() - t3}") 
 
     # assert_latents_shapes_devices(x_img_1, x_txt_1, x_img_t, x_txt_t, v_star_img, u_star_txt, device)
