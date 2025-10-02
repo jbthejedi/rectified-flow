@@ -77,31 +77,31 @@ class JointFiLMCrossAttn(nn.Module):
 
         # --- image tokens ---
         img_tok = self.img_proj(x_img_t)                            # (B, hidden, H, W)
-        img_tok = img_tok.permute(0, 2, 3, 1).reshape(B, H*W, -1)   # (B, 64, hidden)
-        img_tok = self.img_norm(img_tok)
+        img_tok = img_tok.permute(0, 2, 3, 1).reshape(B, H*W, -1)   # (B, H*W, hidden)
+        img_tok = self.img_norm(img_tok)                            # (B, H*W, hidden)
 
         # --- text token (we can treat as 1 token) ---
-        txt_tok = self.txt_proj(x_txt_t).unsqueeze(1)  # (B, 1, hidden)
-        txt_tok = self.txt_norm(txt_tok)
+        txt_tok = self.txt_proj(x_txt_t).unsqueeze(1)               # (B, 1, hidden)
+        txt_tok = self.txt_norm(txt_tok)                            # (B, 1, hidden)
 
         # --- FiLM conditioning (time + text) ---
         cond = torch.cat([t_emb, txt_tok.squeeze(1)], dim=-1)        # (B, 2*hidden)
         gamma = self.film_gamma(cond).unsqueeze(1)                   # (B, 1, hidden)
         beta  = self.film_beta(cond).unsqueeze(1)                    # (B, 1, hidden)
-        img_tok = img_tok * (1 + gamma) + beta                       # (B, 64, hidden)
+        img_tok = img_tok * (1 + gamma) + beta                       # (B, H*W, hidden)
 
         # --- cross-attention: img queries text ---
-        img_tok = img_tok + self.cross_attn(img_tok, txt_tok)        # (B, 64, hidden)
+        img_tok = img_tok + self.cross_attn(img_tok, txt_tok)        # (B, H*W, hidden)
 
         # --- feedforward per token ---
-        img_tok = img_tok + self.ffn(img_tok)                        # (B, 64, hidden)
+        img_tok = img_tok + self.ffn(img_tok)                        # (B, H*W, hidden)
 
         # --- outputs ---
         img_out = img_tok.reshape(B, H, W, -1).permute(0, 3, 1, 2)   # (B, hidden, H, W)
         v_img = self.img_head(img_out)                               # (B, C, H, W)
 
         # text head: pool text token after conditioning
-        txt_feat = txt_tok.squeeze(1)
+        txt_feat = txt_tok.squeeze(1)                                # (B, hidden)
         u_txt = self.txt_head(txt_feat)                              # (B, txt_dim)
 
         return v_img, u_txt
