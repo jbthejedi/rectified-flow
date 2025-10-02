@@ -6,11 +6,11 @@ import torch
 import torch.optim as optim
 
 import torchvision.utils as vutils
-from torchvision import datasets, transforms as T
+from torchvision import transforms as T
 from torch.utils.data import DataLoader, random_split, Subset
 from tqdm import tqdm
 from rectified_flow.models.image import *
-from rectified_flow.data.datamodule import ProjectData
+from rectified_flow.data.datamodule_recover import ProjectData
 from diffusers import AutoencoderKL
 
 
@@ -18,9 +18,9 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 
 def train_test_model(config):
-    dataset = ProjectData(config).data
+    dataset = ProjectData(config, device).dataset
     if config.do_small_sample:
-        indices = random.sample(range(len(dataset)), 1000)
+        indices = random.sample(range(len(dataset)), config.sample_size_k)
         dataset = Subset(dataset, indices)
         print(len(dataset))
     train_len = int(len(dataset) * config.p_train_len)
@@ -100,17 +100,18 @@ def train_test_model(config):
                 val_loss /= len(val_dl)
                 print(f"Epoch {epoch}: Val Loss = {val_loss:.4f}")
     
-    with torch.no_grad():
-        model.eval()
-        imgs = sample_batch_vae(model, vae, batch_size=16, num_steps=50, img_shape=img_shape)
+        tqdm.write("Showing inference samples...")
+        with torch.no_grad():
+            model.eval()
+            imgs = sample_batch_vae(model, vae, batch_size=4, num_steps=50, img_shape=img_shape)
 
-    # make a nice 4x4 grid
-    grid = vutils.make_grid(imgs.cpu(), nrow=4, normalize=True, pad_value=1.0)
+        # make a nice 4x4 grid
+        grid = vutils.make_grid(imgs.cpu(), nrow=4, normalize=True, pad_value=1.0)
 
-    plt.figure(figsize=(6,6))
-    plt.imshow(grid.permute(1, 2, 0).numpy(), cmap="gray")
-    plt.axis("off")
-    plt.show()
+        plt.figure(figsize=(6,6))
+        plt.imshow(grid.permute(1, 2, 0).numpy(), cmap="gray")
+        plt.axis("off")
+        plt.show()
 
 
 def sample_t(batch_size, device, schedule="uniform"):
@@ -164,7 +165,7 @@ def sample_batch(model, batch_size=16, num_steps=200, img_shape=(1, 28, 28)):
 
 
 def main():
-    env = os.environ.get("ENV", "local")
+    env = os.environ.get("ENV", "local_single")
     print(f"env={env}")
     config = load_config(env)
     print("Configuration loaded")

@@ -1,4 +1,4 @@
-name: joint-it-film-ca-server-${dataset_type}
+name: it-film-ca-server-${dataset_type}
 data_root: /workspace/data
 env: server
 
@@ -22,7 +22,7 @@ download_data: False
 # wandb_mode: disabled
 wandb_mode: online
 
-save_model: False
+save_model: True
 test_model: False
 train_model: True
 

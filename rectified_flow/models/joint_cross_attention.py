@@ -14,11 +14,6 @@ class SimpleCrossAttentionModel(nn.Module):
         self.img_proj = nn.Linear(img_dim, hidden)
         self.txt_proj = nn.Linear(txt_dim, hidden)
 
-        self.fusion = nn.Sequential(
-            nn.Linear(H * W + txt_dim, hidden),
-            nn.SiLU(),
-            nn.Linear(hidden, hidden)
-        )
 
         self.time_emb = TimeEmbedding(time_dim=128)
         self.time_proj = nn.Linear(time_dim, hidden)
@@ -36,14 +31,11 @@ class SimpleCrossAttentionModel(nn.Module):
 
         #### Project Image ####
         img_tokens = x_img_t.permute(0, 2, 3, 1).view(B, -1, IH)         # (B, H*W, IH)
-        img_tokens = self.img_proj(img_tokens) + t_emb[:, None, :]       # (B, H*W, hidden) 
+        img_tokens = self.img_proj(img_tokens)                           # (B, H*W, hidden) 
 
         #### Project Text ####
         txt_tokens = self.txt_proj(x_txt_t) + t_emb[:, None, :]          # (B, L, hidden)
 
-        #### FUSE ####
-        cat = torch.cat([img_tokens, txt_tokens], dim=1)                 # (B, H*W+L, hidden)
-        # fusion = self.fusion(cat)                                        # (B, H*W+L, hidden)
 
         out = None
         return out
