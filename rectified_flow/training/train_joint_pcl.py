@@ -21,7 +21,7 @@ import torchvision.utils as vutils
 
 from omegaconf import OmegaConf
 from tqdm import tqdm
-from rectified_flow.models.image_text import *
+from rectified_flow.models.joint_baseline import *
 from rectified_flow.data.datamodule import *
 from torch.utils.data import DataLoader
 from diffusers import AutoencoderKL
@@ -92,7 +92,7 @@ def train_test_model(config):
     print("Load Model")
     langvae_proj_dim = 128
     # model = BaselineJointModel(txt_dim=langvae_proj_dim, img_dim=4, hidden=256, p_hidden=config.image_size)
-    model = BaselineJointModel(txt_dim=langvae_proj_dim, img_dim=4, hidden=256, p_hidden=64)
+    model = JointEncDecMLPFusion(txt_dim=langvae_proj_dim, img_dim=4, hidden=256, p_hidden=64)
     if config.compile:
         print("Compile Mode = TRUE")
         model = torch.compile(model)

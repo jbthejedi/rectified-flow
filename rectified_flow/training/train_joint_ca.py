@@ -6,7 +6,7 @@ import torch.optim as optim
 
 from omegaconf import OmegaConf
 from tqdm import tqdm
-from rectified_flow.models.image_text import *
+from rectified_flow.models.joint_baseline import *
 from rectified_flow.models.image import *
 from rectified_flow.data.datamodule import ProjectData
 from diffusers import AutoencoderKL
@@ -24,7 +24,7 @@ def train_test_model(config):
     img_shape = (config.num_channels, config.image_size, config.image_size)
     # model = UNet(in_channels=config.num_channels, config=config).to(device)
     bert_dim = 768
-    model = BaselineJointModel(
+    model = JointEncDecMLPFusion(
         txt_dim=768, img_dim=4, hidden=256
     )
     optimizer = optim.Adam(model.parameters(), lr=1e-4)

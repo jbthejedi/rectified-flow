@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from rectified_flow.models.joint_baseline import TimeEmbedding
 
 class CrossAttention(nn.Module):
     """Minimal single-head cross-attention."""
@@ -25,7 +26,7 @@ class CrossAttention(nn.Module):
         return self.proj(out)                  # (B, Nq, D)
 
 
-class BaselineJointModel(nn.Module):
+class JointFiLMCrossAttn(nn.Module):
     def __init__(
         self, img_shape=(8, 8), img_dim=4, txt_dim=128,
         hidden=128, time_dim=128
