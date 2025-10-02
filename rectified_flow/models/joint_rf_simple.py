@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import math
 
-from rectified_flow.models.time import TimeEmbedding, SinusoidalTimeEmbedding
+from rectified_flow.models.time import TimeEmbedding
 
 class ImageEncoder(nn.Module):
     def __init__(self, out_dim=32):

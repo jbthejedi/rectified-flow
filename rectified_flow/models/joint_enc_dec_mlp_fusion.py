@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import math
-from rectified_flow.models.time import TimeEmbedding, SinusoidalTimeEmbedding
+from rectified_flow.models.time import TimeEmbedding
 
 
 class JointEncDecMLPFusion(nn.Module):

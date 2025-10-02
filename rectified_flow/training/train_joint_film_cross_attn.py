@@ -15,7 +15,7 @@ import torchvision.utils as vutils
 
 from omegaconf import OmegaConf
 from tqdm import tqdm
-from rectified_flow.models.joint_enc_dec_mlp_fusion import *
+from rectified_flow.models.joint_film_cross_attn_orign import *
 from rectified_flow.data.flickr30k_tokenized import *
 from torch.utils.data import DataLoader, Subset
 from diffusers import AutoencoderKL
@@ -145,9 +145,9 @@ def train_test_model(config):
     # model = BaselineJointModel(txt_dim=langvae_proj_dim, img_dim=4, hidden=256, p_hidden=config.image_size)
     IMAGE_SHAPE = (config.image_size//8, config.image_size//8)
     IH = 4
-    model = JointEncDecMLPFusion(txt_dim=langvae_proj_dim, img_dim=4,
-                               hidden=256, p_hidden=64,
-                               img_shape=IMAGE_SHAPE)
+    model = JointFiLMCrossAttn(img_shape=IMAGE_SHAPE, img_dim=4,
+                               txt_dim=langvae_proj_dim,
+                               hidden=128, time_dim=128)
     if config.compile:
         print("Compile Mode = TRUE")
         model = torch.compile(model)

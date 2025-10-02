@@ -6,7 +6,7 @@ import torch
 from torchvision import datasets, transforms as T
 from torch.utils.data import DataLoader, random_split, Subset
 from tqdm import tqdm
-from rectified_flow.models.joint_baseline import *
+from rectified_flow.models.joint_enc_dec_mlp_fusion import *
 import torch.nn.functional as F
 from rectified_flow.data.datamodule import *
 

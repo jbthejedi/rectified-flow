@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import math
-from rectified_flow.models.joint_baseline import TimeEmbedding
+from rectified_flow.models.time import TimeEmbedding
 
 
 class SimpleCrossAttentionModel(nn.Module):

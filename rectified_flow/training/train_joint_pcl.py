@@ -21,7 +21,7 @@ import torchvision.utils as vutils
 
 from omegaconf import OmegaConf
 from tqdm import tqdm
-from rectified_flow.models.joint_baseline import *
+from rectified_flow.models.joint_enc_dec_mlp_fusion import *
 from rectified_flow.data.datamodule import *
 from torch.utils.data import DataLoader
 from diffusers import AutoencoderKL

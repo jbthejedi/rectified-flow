@@ -6,7 +6,7 @@ import torch.optim as optim
 
 from omegaconf import OmegaConf
 from tqdm import tqdm
-from rectified_flow.models.joint_baseline import *
+from rectified_flow.models.joint_enc_dec_mlp_fusion import *
 from rectified_flow.models.image import *
 from rectified_flow.data.datamodule import ProjectData
 from diffusers import AutoencoderKL
