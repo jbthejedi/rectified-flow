@@ -1,7 +1,7 @@
 seed: 1337
 project: rf-joint
 p_dropout: 0.1
-lr: 1e-4
+lr: 3e-4
 p_train_len: 0.9
 
 kl_clip: 1.0
