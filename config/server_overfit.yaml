@@ -33,6 +33,6 @@ sample_size_k: 128
 
 summary: False
 
-inference_peek_num: 1
+inference_peek_num: 5
 local_visualization: True
 write_inference_samples: False

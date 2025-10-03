@@ -93,7 +93,7 @@ def train_test_model(config):
             plt.axis("off")
             plt.show()
 
-        if (epoch % config.inference_peek_num == 5) and config.write_inference_samples:
+        if (epoch % config.inference_peek_num == 0) and config.write_inference_samples:
             images = wandb.Image(grid, caption=f"Epoch {epoch}")
             log_dict["samples/images"] = images
             # wandb.run.summary["samples/last_image"] = images
