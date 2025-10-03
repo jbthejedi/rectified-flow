@@ -1,14 +1,15 @@
-name: baseline-joint-it-local-${dataset_type}
-data_root: /Users/justinbarry/projects/data/
-# data_root: /Users/justinbarry/projects/flickr30k_entities
-env: local
-
 dataset_type: 'cifar10'
 
-n_epochs: 10
+name: overfit-unet-server-${dataset_type}
+# data_root: /workspace/data
+download_data: True
+env: server
+
+
+n_epochs: 100
 
 image_size: 128
-batch_size: 8
+batch_size: 128
 normalize_shape: 0.5
 
 num_channels: 4
@@ -19,12 +20,11 @@ num_groups: 32
 num_workers: 4
 
 artifact_name: jbarry-team/${project}/${name}-best-model:latest
-download_data: False
-wandb_mode: disabled
-# wandb_mode: online
+# wandb_mode: disabled
+wandb_mode: online
 
 save_model: False
-test_model: True
+test_model: False
 train_model: True
 
 compile: False

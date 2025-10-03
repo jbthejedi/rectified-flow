@@ -1,5 +1,6 @@
 import os
 import random
+import wandb
 import matplotlib.pyplot as plt
 from omegaconf import OmegaConf
 import torch
@@ -18,6 +19,16 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 
 def train_test_model(config):
+    config_dict = OmegaConf.to_container(config)
+    wandb.init(
+        project=config.project,
+        name=config.name,
+        config=config_dict,
+        mode=config.wandb_mode,
+        settings=wandb.Settings(start_method="thread"),
+    )
+    wandb.define_metric("epoch")
+    wandb.define_metric("*", step_metric="epoch")
     dataset = ProjectData(config, device).dataset
     if config.do_small_sample:
         indices = random.sample(range(len(dataset)), config.sample_size_k)
@@ -39,10 +50,11 @@ def train_test_model(config):
     for p in vae.parameters():
         p.requires_grad = False
 
+    log_dict = {}
     for epoch in range(config.n_epochs):
         with tqdm(train_dl, desc="Training") as pbar:
             train_loss = 0.0
-            for batch_idx, (x0, _) in enumerate(pbar):                                 # (B, 1, 28, 28)
+            for x0, _ in pbar:                                 # (B, 1, 28, 28)
                 B, C, H, W = x0.shape
                 x0 = x0.to(device)                                                     # (B, 1, 28, 28)
                 with torch.no_grad():
@@ -64,46 +76,25 @@ def train_test_model(config):
                 train_loss += loss.item()
 
             train_loss /= len(train_dl)
-            print(f"Epoch {epoch}: Train Loss = {train_loss:.4f}")
-
-        with tqdm(val_dl, desc="Validation") as pbar:
-            with torch.no_grad():
-                model.eval()
-                val_loss = 0.0
-                for batch_idx, (x0, _) in enumerate(pbar):                                 # (B, 1, 28, 28)
-                    B, C, H, W = x0.shape
-                    x0 = x0.to(device)                                                     # (B, 1, 28, 28)
-                    with torch.no_grad():
-                        # Posterior is DiagonalGaussianDistribution
-                        posterior = vae.encode(x0).latent_dist
-                        x0_latent = posterior.mean * vae.config.scaling_factor             # (B, 4, H//8, W//8)
-
-                    xT = torch.randn_like(x0_latent)                                       # (B, 1, 28, 28)
-                    t = torch.rand(x0.size(0), 1, device=device)                           # (B, 1)
-                    xt = (1 - t[:, :, None, None]) * x0_latent + t[:, :, None, None] * xT  # (B, 1, 28, 28)
-                    v = xT - x0_latent                                                     # (B, 1, 28, 28)
-
-                    v_pred = model(xt, t)
-                    # v_pred = model(xt)
-
-                    loss = ((v_pred - v)**2).mean()
-
-                    val_loss += loss.item()
-                val_loss /= len(val_dl)
-                print(f"Epoch {epoch}: Val Loss = {val_loss:.4f}")
-    
+            tqdm.write(f"Epoch {epoch}: Train Loss = {train_loss:.4f}")
         tqdm.write("Showing inference samples...")
         with torch.no_grad():
             model.eval()
             imgs = sample_batch_vae(model, vae, batch_size=4, num_steps=50, img_shape=img_shape)
-
-        # make a nice 4x4 grid
         grid = vutils.make_grid(imgs.cpu(), nrow=4, normalize=True, pad_value=1.0)
+        if config.local_visualization:
+            plt.figure(figsize=(3, 3))
+            plt.imshow(grid.permute(1, 2, 0).numpy(), cmap="gray")
+            plt.axis("off")
+            plt.show()
+        if (epoch % config.inference_peek_num == 5) and config.write_inference_samples:
+            images = wandb.Image(grid, caption=f"Epoch {epoch}")
+            log_dict["samples/images"] = images
+            # wandb.run.summary["samples/last_image"] = images
 
-        plt.figure(figsize=(6,6))
-        plt.imshow(grid.permute(1, 2, 0).numpy(), cmap="gray")
-        plt.axis("off")
-        plt.show()
+        log_dict["train/loss"] = train_loss
+        wandb.log(log_dict, step=epoch, commit=True)
+    tqdm.write("Done Training")
 
 
 def sample_t(batch_size, device, schedule="uniform"):
@@ -180,7 +171,7 @@ def test_model(config):
     pass
 
 
-def load_config(env="local_single"):
+def load_config(env="local_overfit"):
     base_config = OmegaConf.load("config/base.yaml")
 
     env_path = f"config/{env}.yaml"
