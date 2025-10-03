@@ -35,4 +35,4 @@ summary: False
 
 inference_peek_num: 5
 local_visualization: True
-write_inference_samples: False
+write_inference_samples: True

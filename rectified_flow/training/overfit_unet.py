@@ -81,7 +81,6 @@ def train_test_model(config):
             train_loss /= len(train_dl)
             tqdm.write(f"Epoch {epoch}: Train Loss = {train_loss:.4f}")
 
-        tqdm.write("Showing inference samples...")
         with torch.no_grad():
             model.eval()
             imgs = sample_batch_vae(model, vae, batch_size=4, num_steps=50, img_shape=img_shape)
@@ -94,6 +93,7 @@ def train_test_model(config):
             plt.show()
 
         if (epoch % config.inference_peek_num == 0) and config.write_inference_samples:
+            tqdm.write("Writing image grid")
             images = wandb.Image(grid, caption=f"Epoch {epoch}")
             log_dict["samples/images"] = images
             # wandb.run.summary["samples/last_image"] = images
