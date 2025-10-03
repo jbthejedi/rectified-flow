@@ -21,8 +21,8 @@ num_workers: 4
 
 artifact_name: jbarry-team/${project}/${name}-best-model:latest
 download_data: False
-wandb_mode: disabled
-# wandb_mode: online
+# wandb_mode: disabled
+wandb_mode: online
 
 save_model: False
 test_model: True
@@ -30,13 +30,13 @@ train_model: True
 
 compile: False
 do_small_sample: True
-sample_size_k: 128
+sample_size_k: 8
 
 summary: False
 
 inference_peek_num: 1
 local_visualization: True
-write_inference_samples: False
+write_inference_samples: True
 
 do_round_trip: False
-do_decode_latent: True
+do_decode_latent: False

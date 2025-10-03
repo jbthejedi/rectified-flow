@@ -91,26 +91,40 @@ def train_test_model(config):
                 train_loss /= len(train_dl)
                 tqdm.write(f"Epoch {epoch}: Train Loss = {train_loss:.4f}")
 
-            with torch.no_grad():
-                model.eval()
-                imgs = sample_batch_vae(ema, aekl, batch_size=4, num_steps=50, img_shape=img_shape)
+            if (epoch % config.inference_peek_num == 0):
+                flow, mush = sample_batch_vae(ema, aekl, batch_size=4, num_steps=300, img_shape=img_shape)
 
-            grid = vutils.make_grid(imgs.cpu(), nrow=4, normalize=True, pad_value=1.0)
-            if config.local_visualization:
-                plt.figure(figsize=(3, 3))
-                plt.imshow(grid.permute(1, 2, 0).numpy(), cmap="gray")
-                plt.axis("off")
-                plt.show()
+                if config.local_visualization is True:
+                    show_flow_vs_mush(flow, mush)
 
-            if (epoch % config.inference_peek_num == 0) and config.write_inference_samples:
-                tqdm.write("Writing image grid")
-                images = wandb.Image(grid, caption=f"Epoch {epoch}")
-                log_dict["samples/images"] = images
-                # wandb.run.summary["samples/last_image"] = images
+                if config.write_inference_samples is True:
+                    log_flow_vs_mush_wandb(mush, flow, originals=None, nrow=4, step=epoch)
+                    tqdm.write("Writing image grid")
 
             log_dict["train/loss"] = train_loss
             wandb.log(log_dict, step=epoch, commit=True)
         tqdm.write("Done Training")
+
+
+def to_grid(imgs, nrow=4):
+    # imgs: (B, 3, H, W) in [0,1]
+    g = vutils.make_grid(imgs.detach().cpu().clamp(0,1), nrow=nrow, padding=2)
+    return g  # (3, GH, GW)
+
+
+def log_flow_vs_mush_wandb(mush, flow, originals=None, nrow=4, step=None, prefix="samples/"):
+    mush_grid = to_grid(mush, nrow)
+    flow_grid = to_grid(flow, nrow)
+
+    payload = {
+        f"{prefix}mush": wandb.Image(mush_grid, caption="No flow (decode(randn))"),
+        f"{prefix}flow": wandb.Image(flow_grid, caption="With flow"),
+    }
+    if originals is not None:
+        orig_grid = to_grid(originals, nrow)
+        payload[f"{prefix}originals"] = wandb.Image(orig_grid, caption="Round-trip originals")
+
+    wandb.log(payload, step=step)
 
 
 def decode_latent_sample(aekl : AutoencoderKL, config):
@@ -146,6 +160,33 @@ def round_trip(aekl, train_dl):
     plt.show()
 
 
+def show_flow_vs_mush(flow, mush, originals=None, nrow=4, title_left="No flow (mush)", title_right="With flow"):
+    """
+    mush, flow, originals: (B, 3, H, W) in [0,1] on any device
+    """
+    def to_grid(x):
+        x = x.detach().cpu().clamp(0,1)
+        return vutils.make_grid(x, nrow=nrow, padding=2)
+
+    grids = [to_grid(mush), to_grid(flow)]
+    titles = [title_left, title_right]
+
+    if originals is not None:
+        grids = [to_grid(originals)] + grids
+        titles = ["Round-trip originals"] + titles
+
+    cols = len(grids)
+    plt.figure(figsize=(6*cols, 6))
+    for i, (g, t) in enumerate(zip(grids, titles), 1):
+        plt.subplot(1, cols, i)
+        plt.imshow(g.permute(1, 2, 0).numpy())
+        plt.title(t)
+        plt.axis("off")
+    plt.tight_layout()
+    plt.show()
+
+
+
 class EMA:
     def __init__(self, model, beta=0.999):
         self.m = copy.deepcopy(model).eval()
@@ -177,27 +218,18 @@ def sample_batch_vae(ema, vae, batch_size=16, num_steps=300, img_shape=(3, 128, 
     latent_shape = (4, img_shape[1] // 8, img_shape[2] // 8)   # 4 x H/8 x W/8
 
     # Start from Gaussian noise in latent space
-    x = torch.randn(batch_size, *latent_shape, device=device)
-
-    # t_vals = torch.linspace(1.0, 0.0, num_steps, device=device)
-    # for i in range(len(t_vals) - 1):
-    #     t = t_vals[i].expand(batch_size, 1, 1, 1)  # (B,1,1,1)
-    #     dt = t_vals[i + 1] - t_vals[i]
-    #     # v_pred = model(x, t)  # (B, 4, H/8, W/8)
-    #     v_pred = ema.m(x, t)
-    #     x = x + v_pred * dt
-
-    t_vals, dts = cosine_ts(num_steps=160, device=device)
-    for i in range(len(t_vals)-1):
-        t = t_vals[i].expand(batch_size,1,1,1)
-        x = x + ema.m(x, t) * dts[i]
-
-    # Decode latent → image
+    z0 = torch.randn(batch_size, *latent_shape, device=device)
     with torch.no_grad():
-        imgs = vae.decode(x / vae.config.scaling_factor).mean
-        imgs = (imgs.clamp(-1, 1) + 1) / 2  # map back to [0,1]
+        mush = vae.decode(z0 / vae.config.scaling_factor).sample
+        x = z0.clone()
+        t_vals, dts = cosine_ts(num_steps=num_steps, device=device)
+        for i in range(len(t_vals)-1):
+            t = t_vals[i].expand(batch_size,1,1,1)
+            x = x + ema.m(x, t) * dts[i]
+        flow = vae.decode(x / vae.config.scaling_factor).sample
+        flow = (flow.clamp(-1, 1) + 1) / 2  # map back to [0,1]
 
-    return imgs
+    return flow, mush
 
 
 def cosine_ts(num_steps, device):
