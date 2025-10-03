@@ -154,7 +154,7 @@ def sample_batch(model, batch_size=16, num_steps=200, img_shape=(1, 28, 28)):
 
 
 def main():
-    env = os.environ.get("ENV", "local_single")
+    env = os.environ.get("ENV", "local_overfit")
     print(f"env={env}")
     config = load_config(env)
     print("Configuration loaded")

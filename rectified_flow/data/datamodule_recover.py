@@ -27,21 +27,15 @@ class ProjectData:
 
         elif config.dataset_type == 'celeba':
             print("Using Celeba")
-            dataset = datasets.CelebA(
-                root=os.path.join(config.data_root, "img_align_celeba"),
-                download=config.download_data,
-                transform=T.Compose([
-                    T.CenterCrop(178),
-                    T.Resize((config.image_size, config.image_size)),
-                    T.ToTensor(),
+            transform = T.Compose([
+                T.CenterCrop(178),
+                T.Resize(config.image_size),
+                T.ToTensor(),
                     T.Normalize(mean=[0.5] * 3, std=[0.5] * 3),
-                ])
-            )
-            if config.do_small_sample is not False:
-                dataset = self.__sample_dataset(dataset)
-            train_len = int(len(dataset) * config.p_train_len)
-            self.train_set, self.val_set = random_split(
-                dataset, [train_len, len(dataset) - train_len]
+            ])
+            self.dataset = CelebADataset(
+                root_dir=os.path.join(config.data_root, "img_align_celeba"),
+                transform=transform
             )
 
         elif config.dataset_type == 'mscoco_mini':
@@ -136,11 +130,21 @@ class ProjectData:
         print(len(dataset))
         return dataset
 
-    def get_dataloader(self):
-        train_dl = DataLoader(self.train_set, batch_size=config.batch_size, shuffle=True)
-        val_dl = DataLoader(self.val_set, batch_size=config.batch_size)
-        return train_dl, val_dl
+class CelebADataset(Dataset):
+    def __init__(self, root_dir, transform=None):
+        self.root_dir = root_dir
+        self.img_names = sorted([f for f in os.listdir(root_dir) if f.endswith(".jpg")])
+        self.transform = transform
 
+    def __len__(self):
+        return len(self.img_names)
+
+    def __getitem__(self, idx):
+        img_path = os.path.join(self.root_dir, self.img_names[idx])
+        image = Image.open(img_path).convert("RGB")
+        if self.transform:
+            image = self.transform(image)
+        return image, 0
 
 class Flickr30kDataset(Dataset):
     def __init__(self, images_root, captions_file, transform=None):
