@@ -28,7 +28,7 @@ class ProjectData:
         elif config.dataset_type == 'celeba':
             print("Using Celeba")
             dataset = datasets.CelebA(
-                root=config.data_root,
+                root=os.path.join(config.data_root, "img_align_celeba"),
                 download=config.download_data,
                 transform=T.Compose([
                     T.CenterCrop(178),

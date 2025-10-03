@@ -245,11 +245,9 @@ def compute_data(images, token_ids, attn_mask, aekl, langvae : LangVAE, model, d
     images = images.to(device, non_blocking=True)
     token_ids = token_ids.to(device, non_blocking=True)
     attn_mask = attn_mask.to(device, non_blocking=True)
-    # assert_batch_devices(images, token_ids, attn_mask, device)
 
     # Encode Image
     t1 = time.time()
-    # tqdm.write("start img encode") 
     amp_dtype = torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
     with torch.no_grad():
         with torch.autocast(device_type="cuda", dtype=amp_dtype):
@@ -260,15 +258,8 @@ def compute_data(images, token_ids, attn_mask, aekl, langvae : LangVAE, model, d
     t2 = time.time()
     with torch.no_grad():
         with torch.autocast(device_type="cuda", dtype=amp_dtype):
-            z, _ = langvae.encode_z(token_ids)
-
-            # temp = langvae.encoder
-            # temp.encoder(token_ids)
-            # z = None
-    x_txt_1 = z                                                                      # (B, TH)
-
-    # outputs = bert(input_ids=token_ids, attention_mask=attn_mask)        
-    # x_txt_1 = outputs.pooler_output                                                # (B, TH)
+            token_embddings, z_pooled = langvae.encode_zt(token_ids, return_tokens=True)
+    x_txt_1 = z_pooled                                                                      # (B, TH)
 
     B = x_img_1.size(0)
     

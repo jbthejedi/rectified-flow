@@ -1,8 +1,8 @@
-dataset_type: 'cifar10'
+dataset_type: celeba
 
 name: overfit-unet-server-${dataset_type}
 data_root: /workspace/data
-download_data: True
+download_data: False
 env: server
 
 
