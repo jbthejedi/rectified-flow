@@ -1,9 +1,6 @@
-import os
-import random
-import wandb
+import os, copy, random, wandb, torch
 import matplotlib.pyplot as plt
 from omegaconf import OmegaConf
-import torch
 import torch.optim as optim
 
 import torchvision.utils as vutils
@@ -44,7 +41,8 @@ def train_test_model(config):
 
     # Training loop
     img_shape = (config.num_channels, config.image_size, config.image_size)
-    model = UNet(in_channels=config.num_channels, config=config).to(device)
+    model = UNet(in_channels=config.num_channels, time_dim=128, p_dropout=None).to(device)
+    ema = EMA(model, beta=0.9995)
     optimizer = optim.Adam(model.parameters(), lr=1e-4)
 
     #### DIFFUSERS/AUTOENCODERKL #######
@@ -75,7 +73,9 @@ def train_test_model(config):
 
                 optimizer.zero_grad()
                 loss.backward()
+                torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
                 optimizer.step()
+                ema.update(model)
                 train_loss += loss.item()
 
             train_loss /= len(train_dl)
@@ -83,7 +83,7 @@ def train_test_model(config):
 
         with torch.no_grad():
             model.eval()
-            imgs = sample_batch_vae(model, vae, batch_size=4, num_steps=50, img_shape=img_shape)
+            imgs = sample_batch_vae(ema, vae, batch_size=4, num_steps=50, img_shape=img_shape)
 
         grid = vutils.make_grid(imgs.cpu(), nrow=4, normalize=True, pad_value=1.0)
         if config.local_visualization:
@@ -102,6 +102,24 @@ def train_test_model(config):
         wandb.log(log_dict, step=epoch, commit=True)
     tqdm.write("Done Training")
 
+def cosine_ts(n, device):
+    s=0.008
+    i = torch.arange(n, device=device)
+    f = lambda k: torch.cos(( (k/n + s)/(1+s) )*math.pi/2)**2
+    t = f(i); dt = f(i+1)-f(i)
+    return t, dt
+
+
+
+class EMA:
+    def __init__(self, model, beta=0.999):
+        self.m = copy.deepcopy(model).eval()
+        for p in self.m.parameters(): p.requires_grad=False
+        self.beta = beta
+    @torch.no_grad()
+    def update(self, model):
+        for p_ema, p in zip(self.m.parameters(), model.parameters()):
+            p_ema.mul_(self.beta).add_(p, alpha=1-self.beta)
 
 def sample_t(batch_size, device, schedule="uniform"):
     if schedule == "uniform":
@@ -118,19 +136,24 @@ def sample_t(batch_size, device, schedule="uniform"):
     return t[:, None, None, None]  # shape (B,1,1,1)
 
 
-def sample_batch_vae(model, vae, batch_size=16, num_steps=200, img_shape=(3, 128, 128)):
-    device = next(model.parameters()).device
+def sample_batch_vae(ema, vae, batch_size=16, num_steps=200, img_shape=(3, 128, 128)):
     latent_shape = (4, img_shape[1] // 8, img_shape[2] // 8)   # 4 x H/8 x W/8
 
     # Start from Gaussian noise in latent space
     x = torch.randn(batch_size, *latent_shape, device=device)
-    t_vals = torch.linspace(1.0, 0.0, num_steps, device=device)
 
-    for i in range(len(t_vals) - 1):
-        t = t_vals[i].expand(batch_size, 1, 1, 1)  # (B,1,1,1)
-        dt = t_vals[i + 1] - t_vals[i]
-        v_pred = model(x, t)  # (B, 4, H/8, W/8)
-        x = x + v_pred * dt
+    # t_vals = torch.linspace(1.0, 0.0, num_steps, device=device)
+    # for i in range(len(t_vals) - 1):
+    #     t = t_vals[i].expand(batch_size, 1, 1, 1)  # (B,1,1,1)
+    #     dt = t_vals[i + 1] - t_vals[i]
+    #     # v_pred = model(x, t)  # (B, 4, H/8, W/8)
+    #     v_pred = ema.m(x, t)
+    #     x = x + v_pred * dt
+
+    t_vals, dts = cosine_ts(80, device)
+    for i in range(len(t_vals)-1):
+        t = t_vals[i].expand(batch_size,1,1,1)
+        x = x + ema.m(x, t) * dts[i]
 
     # Decode latent → image
     with torch.no_grad():
@@ -138,19 +161,6 @@ def sample_batch_vae(model, vae, batch_size=16, num_steps=200, img_shape=(3, 128
         imgs = (imgs.clamp(-1, 1) + 1) / 2  # map back to [0,1]
 
     return imgs
-
-
-def sample_batch(model, batch_size=16, num_steps=200, img_shape=(1, 28, 28)):
-    device = next(model.parameters()).device
-    x = torch.randn(batch_size, *img_shape, device=device)  # batch of noise
-    t_vals = torch.linspace(1.0, 0.0, num_steps, device=device)
-
-    for i in range(len(t_vals)-1):
-        t = t_vals[i].expand(batch_size, 1, 1, 1)  # Correct shape
-        dt = t_vals[i+1] - t_vals[i]
-        v_pred = model(x, t)               # (B, C, H, W)
-        x = x + v_pred * dt
-    return x.clamp(0, 1)  # keep images in [0,1]
 
 
 def main():
