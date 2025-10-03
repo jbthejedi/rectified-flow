@@ -53,6 +53,7 @@ def train_test_model(config):
 
     log_dict = {}
     for epoch in range(config.n_epochs):
+        log_dict["epoch"] = epoch
         with tqdm(train_dl, desc="Training") as pbar:
             train_loss = 0.0
             for x0, _ in pbar:                                 # (B, 1, 28, 28)
@@ -102,13 +103,13 @@ def train_test_model(config):
         wandb.log(log_dict, step=epoch, commit=True)
     tqdm.write("Done Training")
 
+
 def cosine_ts(n, device):
     s=0.008
     i = torch.arange(n, device=device)
     f = lambda k: torch.cos(( (k/n + s)/(1+s) )*math.pi/2)**2
     t = f(i); dt = f(i+1)-f(i)
     return t, dt
-
 
 
 class EMA:
@@ -120,6 +121,7 @@ class EMA:
     def update(self, model):
         for p_ema, p in zip(self.m.parameters(), model.parameters()):
             p_ema.mul_(self.beta).add_(p, alpha=1-self.beta)
+
 
 def sample_t(batch_size, device, schedule="uniform"):
     if schedule == "uniform":
