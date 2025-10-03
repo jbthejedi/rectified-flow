@@ -160,12 +160,8 @@ def main():
     if config.device == 'cuda':
         torch.set_float32_matmul_precision('high')
 
-    elif config.train_model:
+    if config.train_model:
         train_test_model(config)
-
-
-def test_model(config):
-    pass
 
 
 def load_config(env="local_overfit"):
