@@ -14,6 +14,7 @@ from langvae.data_conversion.tokenization import TokenizedDataSet
 class ProjectData:
     def __init__(self, config, device):
         if config.dataset_type == 'cifar10':
+            print("Using Cifar10")
             self.dataset = datasets.CIFAR10(
                 root=config.data_root,
                 download=config.download_data,
@@ -25,6 +26,7 @@ class ProjectData:
             )
 
         elif config.dataset_type == 'celeba':
+            print("Using Celeba")
             dataset = datasets.CelebA(
                 root=config.data_root,
                 download=config.download_data,
