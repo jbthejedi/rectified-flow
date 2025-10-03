@@ -16,25 +16,18 @@ class ProjectData:
         if config.dataset_type == 'cifar10':
             self.dataset = datasets.CIFAR10(
                 root=config.data_root,
-                download=False,
+                download=config.download_data,
                 transform=T.Compose([
                     T.Resize((config.image_size, config.image_size)),
                     T.ToTensor(),
                     T.Normalize(mean=[0.5], std=[0.5]),
                 ])
             )
-            # self.dataset = dataset
-            # if config.do_small_sample is not False:
-            #     dataset = self.__sample_dataset(dataset, config.sample_size_k)
-            # train_len = int(len(dataset) * config.p_train_len)
-            # self.train_set, self.val_set = random_split(
-            #     dataset, [train_len, len(dataset) - train_len]
-            # )
 
         elif config.dataset_type == 'celeba':
             dataset = datasets.CelebA(
                 root=config.data_root,
-                download=False,
+                download=config.download_data,
                 transform=T.Compose([
                     T.CenterCrop(178),
                     T.Resize((128, 128)),
