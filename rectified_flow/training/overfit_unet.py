@@ -19,6 +19,7 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 
 def train_test_model(config):
+    print("Model overfitting begin")
     config_dict = OmegaConf.to_container(config)
     wandb.init(
         project=config.project,
@@ -29,6 +30,8 @@ def train_test_model(config):
     )
     wandb.define_metric("epoch")
     wandb.define_metric("*", step_metric="epoch")
+
+    print("Downloading data")
     dataset = ProjectData(config, device).dataset
     if config.do_small_sample:
         indices = random.sample(range(len(dataset)), config.sample_size_k)
@@ -157,14 +160,8 @@ def main():
     if config.device == 'cuda':
         torch.set_float32_matmul_precision('high')
 
-    # if config.summary:
-    #     print_summary(config)
-    #     exit()
-
     elif config.train_model:
         train_test_model(config)
-    elif config.inference:
-        test_model(config)
 
 
 def test_model(config):
