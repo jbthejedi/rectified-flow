@@ -1,7 +1,7 @@
 dataset_type: 'cifar10'
 
 name: overfit-unet-server-${dataset_type}
-# data_root: /workspace/data
+data_root: /workspace/data
 download_data: True
 env: server
 
