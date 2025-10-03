@@ -3,7 +3,7 @@ data_root: /Users/justinbarry/projects/data/
 # data_root: /Users/justinbarry/projects/flickr30k_entities
 env: local
 
-dataset_type: 'cifar10'
+dataset_type: celeba
 
 n_epochs: 10
 

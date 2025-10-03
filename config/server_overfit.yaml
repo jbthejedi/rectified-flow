@@ -6,7 +6,7 @@ download_data: True
 env: server
 
 
-n_epochs: 100
+n_epochs: 300
 
 image_size: 128
 batch_size: 128

@@ -30,7 +30,7 @@ class ProjectData:
                 download=config.download_data,
                 transform=T.Compose([
                     T.CenterCrop(178),
-                    T.Resize((128, 128)),
+                    T.Resize((config.image_size, config.image_size)),
                     T.ToTensor(),
                     T.Normalize(mean=[0.5] * 3, std=[0.5] * 3),
                 ])
