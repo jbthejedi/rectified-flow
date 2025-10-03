@@ -50,6 +50,10 @@ def train_test_model(config):
 
     if config.do_round_trip is True:
         round_trip(aekl, train_dl)
+        print("Round Trip Finished")
+    if config.do_decode_latent is True:
+        decode_latent_sample(aekl, config)
+        print("Decode Latent Finished")
     else:
         log_dict = {}
         for epoch in range(config.n_epochs):
@@ -109,6 +113,23 @@ def train_test_model(config):
         tqdm.write("Done Training")
 
 
+def decode_latent_sample(aekl : AutoencoderKL, config):
+    B = 4
+    z_unscaled = torch.randn(B, config.latent_channels,
+                             config.image_size // 8, config.image_size // 8,
+                             device=device)
+                            
+    with torch.no_grad():
+        imgs = aekl.decode(z_unscaled / aekl.config.scaling_factor).sample
+        imgs = (imgs.clamp(-1, 1) + 1) / 2
+
+    grid = vutils.make_grid(imgs, nrow=B, normalize=True, pad_value=1.0)
+    plt.figure(figsize=(4, 4))
+    plt.imshow(grid.permute(1, 2, 0).numpy(), cmap="gray")
+    plt.axis("off")
+    plt.show()
+
+
 def round_trip(aekl, train_dl):
     x_vis = next(iter(train_dl))[0][:8].to(device)
     with torch.no_grad():
@@ -130,6 +151,7 @@ class EMA:
         self.m = copy.deepcopy(model).eval()
         for p in self.m.parameters(): p.requires_grad=False
         self.beta = beta
+
     @torch.no_grad()
     def update(self, model):
         for p_ema, p in zip(self.m.parameters(), model.parameters()):
@@ -151,7 +173,7 @@ def sample_t(batch_size, device, schedule="uniform"):
     return t[:, None, None, None]  # shape (B,1,1,1)
 
 
-def sample_batch_vae(ema, vae, batch_size=16, num_steps=200, img_shape=(3, 128, 128)):
+def sample_batch_vae(ema, vae, batch_size=16, num_steps=300, img_shape=(3, 128, 128)):
     latent_shape = (4, img_shape[1] // 8, img_shape[2] // 8)   # 4 x H/8 x W/8
 
     # Start from Gaussian noise in latent space
@@ -172,7 +194,7 @@ def sample_batch_vae(ema, vae, batch_size=16, num_steps=200, img_shape=(3, 128, 
 
     # Decode latent → image
     with torch.no_grad():
-        imgs = vae.decode(x / vae.config.scaling_factor).sample  # (B, 3, H, W)
+        imgs = vae.decode(x / vae.config.scaling_factor).mean
         imgs = (imgs.clamp(-1, 1) + 1) / 2  # map back to [0,1]
 
     return imgs

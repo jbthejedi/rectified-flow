@@ -8,7 +8,7 @@ env: server
 n_epochs: 300
 
 image_size: 128
-batch_size: 128
+batch_size: 8
 normalize_shape: 0.5
 
 num_channels: 4
