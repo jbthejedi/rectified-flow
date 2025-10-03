@@ -5,7 +5,6 @@ data_root: /workspace/data
 download_data: False
 env: server
 
-
 n_epochs: 300
 
 image_size: 128
@@ -36,3 +35,5 @@ summary: False
 inference_peek_num: 5
 local_visualization: True
 write_inference_samples: True
+
+do_round_trip: False

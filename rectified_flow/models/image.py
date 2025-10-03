@@ -160,10 +160,10 @@ class ResnetBlock(nn.Module):
         t = self.time_proj(t_emb)
         t = t[:, :, None, None]
         h = h + t
-        h = torch.relu(h)
+        h = nn.SiLU(inplace=True)(h)
         h = self.norm2(self.conv2(h))
         h = self.dropout(h)
-        out = torch.relu(h + identity)
+        out = nn.SiLU(inplace=True)(h + identity)
         return out
 
 

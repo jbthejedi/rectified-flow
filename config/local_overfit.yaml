@@ -37,3 +37,5 @@ summary: False
 inference_peek_num: 1
 local_visualization: True
 write_inference_samples: False
+
+do_round_trip: False

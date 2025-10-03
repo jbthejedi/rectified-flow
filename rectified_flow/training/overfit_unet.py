@@ -34,10 +34,7 @@ def train_test_model(config):
         indices = random.sample(range(len(dataset)), config.sample_size_k)
         dataset = Subset(dataset, indices)
         print(len(dataset))
-    train_len = int(len(dataset) * config.p_train_len)
-    train_set, val_set = random_split(dataset, [train_len, len(dataset) - train_len])
-    train_dl = DataLoader(train_set, batch_size=config.batch_size, shuffle=True)
-    val_dl   = DataLoader(val_set, batch_size=config.batch_size, shuffle=False)
+    train_dl = DataLoader(dataset, batch_size=config.batch_size, shuffle=True)
 
     # Training loop
     img_shape = (config.num_channels, config.image_size, config.image_size)
@@ -46,70 +43,86 @@ def train_test_model(config):
     optimizer = optim.Adam(model.parameters(), lr=1e-4)
 
     #### DIFFUSERS/AUTOENCODERKL #######
-    vae = AutoencoderKL.from_pretrained("stabilityai/sd-vae-ft-mse").to(device)
-    vae.eval()
-    for p in vae.parameters():
+    aekl = AutoencoderKL.from_pretrained("stabilityai/sd-vae-ft-mse").to(device)
+    aekl.eval()
+    for p in aekl.parameters():
         p.requires_grad = False
 
-    log_dict = {}
-    for epoch in range(config.n_epochs):
-        log_dict["epoch"] = epoch
-        with tqdm(train_dl, desc="Training") as pbar:
-            train_loss = 0.0
-            for x0, _ in pbar:                                 # (B, 1, 28, 28)
-                B, C, H, W = x0.shape
-                x0 = x0.to(device)                                                     # (B, 1, 28, 28)
-                with torch.no_grad():
-                    posterior = vae.encode(x0).latent_dist
-                    x0_latent = posterior.mean * vae.config.scaling_factor             # (B, 4, H//8, W//8)
+    if config.do_round_trip is True:
+        round_trip(aekl, train_dl)
+    else:
+        log_dict = {}
+        for epoch in range(config.n_epochs):
+            log_dict["epoch"] = epoch
+            model.train()
+            with tqdm(train_dl, desc="Training") as pbar:
+                train_loss = 0.0
+                for x0, _ in pbar:                                 # (B, 1, 28, 28)
+                    B, C, H, W = x0.shape
+                    x0 = x0.to(device)                                                     # (B, 1, 28, 28)
+                    with torch.no_grad():
+                        posterior = aekl.encode(x0).latent_dist
+                        x0_latent = posterior.mean * aekl.config.scaling_factor             # (B, 4, H//8, W//8)
 
-                xT = torch.randn_like(x0_latent)                                       # (B, 1, 28, 28)
-                t = torch.rand(x0.size(0), 1, device=device)                           # (B, 1)
-                xt = (1 - t[:, :, None, None]) * x0_latent + t[:, :, None, None] * xT  # (B, 1, 28, 28)
-                v = xT - x0_latent                                                     # (B, 1, 28, 28)
+                    xT = torch.randn_like(x0_latent)                                       # (B, 1, 28, 28)
+                    t = torch.rand(x0.size(0), 1, device=device)                           # (B, 1)
+                    xt = (1 - t[:, :, None, None]) * x0_latent + t[:, :, None, None] * xT  # (B, 1, 28, 28)
+                    v = xT - x0_latent                                                     # (B, 1, 28, 28)
+                    v_pred = model(xt, t)
 
-                v_pred = model(xt, t)
+                    with torch.no_grad():
+                        v_mag  = v.abs().mean().item()
+                        vp_mag = v_pred.abs().mean().item()
+                    tqdm.write(f"|v*|={v_mag:.3f} |v̂|={vp_mag:.3f}")
 
-                loss = ((v_pred - v)**2).mean()
+                    loss = ((v_pred - v)**2).mean()
 
-                optimizer.zero_grad()
-                loss.backward()
-                torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
-                optimizer.step()
-                ema.update(model)
-                train_loss += loss.item()
+                    optimizer.zero_grad()
+                    loss.backward()
+                    torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+                    optimizer.step()
+                    ema.update(model)
+                    train_loss += loss.item()
 
-            train_loss /= len(train_dl)
-            tqdm.write(f"Epoch {epoch}: Train Loss = {train_loss:.4f}")
+                train_loss /= len(train_dl)
+                tqdm.write(f"Epoch {epoch}: Train Loss = {train_loss:.4f}")
 
-        with torch.no_grad():
-            model.eval()
-            imgs = sample_batch_vae(ema, vae, batch_size=4, num_steps=50, img_shape=img_shape)
+            with torch.no_grad():
+                model.eval()
+                imgs = sample_batch_vae(ema, aekl, batch_size=4, num_steps=50, img_shape=img_shape)
 
-        grid = vutils.make_grid(imgs.cpu(), nrow=4, normalize=True, pad_value=1.0)
-        if config.local_visualization:
-            plt.figure(figsize=(3, 3))
-            plt.imshow(grid.permute(1, 2, 0).numpy(), cmap="gray")
-            plt.axis("off")
-            plt.show()
+            grid = vutils.make_grid(imgs.cpu(), nrow=4, normalize=True, pad_value=1.0)
+            if config.local_visualization:
+                plt.figure(figsize=(3, 3))
+                plt.imshow(grid.permute(1, 2, 0).numpy(), cmap="gray")
+                plt.axis("off")
+                plt.show()
 
-        if (epoch % config.inference_peek_num == 0) and config.write_inference_samples:
-            tqdm.write("Writing image grid")
-            images = wandb.Image(grid, caption=f"Epoch {epoch}")
-            log_dict["samples/images"] = images
-            # wandb.run.summary["samples/last_image"] = images
+            if (epoch % config.inference_peek_num == 0) and config.write_inference_samples:
+                tqdm.write("Writing image grid")
+                images = wandb.Image(grid, caption=f"Epoch {epoch}")
+                log_dict["samples/images"] = images
+                # wandb.run.summary["samples/last_image"] = images
 
-        log_dict["train/loss"] = train_loss
-        wandb.log(log_dict, step=epoch, commit=True)
-    tqdm.write("Done Training")
+            log_dict["train/loss"] = train_loss
+            wandb.log(log_dict, step=epoch, commit=True)
+        tqdm.write("Done Training")
 
 
-def cosine_ts(n, device):
-    s=0.008
-    i = torch.arange(n, device=device)
-    f = lambda k: torch.cos(( (k/n + s)/(1+s) )*math.pi/2)**2
-    t = f(i); dt = f(i+1)-f(i)
-    return t, dt
+def round_trip(aekl, train_dl):
+    x_vis = next(iter(train_dl))[0][:8].to(device)
+    with torch.no_grad():
+        post = aekl.encode(x_vis).latent_dist
+        z = post.mean * aekl.config.scaling_factor
+        xr = aekl.decode(z / aekl.config.scaling_factor).sample
+    viz = (xr.clamp(-1,1)+1)/2
+
+    grid = vutils.make_grid(viz.cpu(), nrow=4, padding=2, normalize=False)
+
+    plt.figure(figsize=(8, 8))
+    plt.imshow(grid.permute(1, 2, 0).numpy())   # permute to HWC for matplotlib
+    plt.axis("off")
+    plt.show()
 
 
 class EMA:
@@ -152,7 +165,7 @@ def sample_batch_vae(ema, vae, batch_size=16, num_steps=200, img_shape=(3, 128, 
     #     v_pred = ema.m(x, t)
     #     x = x + v_pred * dt
 
-    t_vals, dts = cosine_ts(80, device)
+    t_vals, dts = cosine_ts(num_steps=160, device=device)
     for i in range(len(t_vals)-1):
         t = t_vals[i].expand(batch_size,1,1,1)
         x = x + ema.m(x, t) * dts[i]
@@ -163,6 +176,14 @@ def sample_batch_vae(ema, vae, batch_size=16, num_steps=200, img_shape=(3, 128, 
         imgs = (imgs.clamp(-1, 1) + 1) / 2  # map back to [0,1]
 
     return imgs
+
+
+def cosine_ts(num_steps, device):
+    s = 0.008
+    i = torch.arange(num_steps, device=device)
+    f = lambda k: torch.cos(( (k/num_steps + s)/(1+s) )*math.pi/2)**2
+    t = f(i); dt = f(i+1)-f(i)
+    return t, dt
 
 
 def main():
