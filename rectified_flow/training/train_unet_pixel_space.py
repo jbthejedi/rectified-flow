@@ -9,7 +9,7 @@ import torchvision.utils as vutils
 from torchvision import transforms as T
 from torch.utils.data import DataLoader, random_split, Subset
 from tqdm import tqdm
-from rectified_flow.models.image import *
+from rectified_flow.models.unet_pixel_space import *
 from rectified_flow.data.datamodule_recover import ProjectData
 from diffusers import AutoencoderKL
 
