@@ -7,7 +7,7 @@ import torchvision.utils as vutils
 from torchvision import transforms as T
 from torch.utils.data import DataLoader, random_split, Subset
 from tqdm import tqdm
-from rectified_flow.models.image import *
+from rectified_flow.models.unet_pixel_space import *
 from rectified_flow.data.datamodule_recover import ProjectData
 from diffusers import AutoencoderKL
 
@@ -38,7 +38,7 @@ def train_test_model(config):
 
     # Training loop
     img_shape = (config.num_channels, config.image_size, config.image_size)
-    model = UNetLatentSpace(in_channels=config.num_channels, time_dim=128, p_dropout=None).to(device)
+    model = UNetPixelSpace(in_channels=config.num_channels, time_dim=128, p_dropout=None).to(device)
     ema = EMA(model, beta=0.9995)
     optimizer = optim.Adam(model.parameters(), lr=1e-4)
 

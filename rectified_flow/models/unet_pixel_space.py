@@ -1,44 +1,6 @@
 import torch
 import torch.nn as nn
-
-import math
-
-class SinusoidalTimeEmbedding(nn.Module):
-    def __init__(self, dim: int):
-        super().__init__()
-        self.dim = dim
-
-    def forward(self, t: torch.Tensor) -> torch.Tensor:
-        """
-        t.shape = (B,)
-        """
-        half_dim = self.dim // 2
-        # Exponential frequency scale (log-spaced)
-        freqs = torch.exp(torch.linspace(                               # (half_dim)
-            0, math.log(10000), half_dim, device=t.device               
-        ))
-        args = t[:, None] * freqs[None, :]                              # (B, 1)x(1, half_dim) -> (B, half_dim)
-        emb = torch.cat([torch.sin(args), torch.cos(args)], dim=-1)     # (B, dim)
-        return emb
-
-
-class TimeEmbedding(nn.Module):
-    def __init__(self, dim: int = 128):
-        super().__init__()
-        self.sin_emb = SinusoidalTimeEmbedding(dim) # (B, 128)
-        self.mlp = nn.Sequential(                   # (B, 128)
-            nn.Linear(dim, dim),
-            nn.ReLU(),
-            nn.Linear(dim, dim),
-        )
-
-    def forward(self, t: torch.Tensor) -> torch.Tensor:
-        # dim = t.shape(1)
-        if t.ndim > 1:
-            t = t.view(t.shape[0])
-        emb = self.sin_emb(t) # (B, dim)
-        out = self.mlp(emb)   # (B, dim)
-        return out
+from rectified_flow.models.time import *
 
 
 class Downsample(nn.Module):
