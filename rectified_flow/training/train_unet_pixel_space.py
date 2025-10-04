@@ -30,14 +30,8 @@ def train_test_model(config):
 
     # Training loop
     img_shape = (config.num_channels, config.image_size, config.image_size)
-    model = UNet(in_channels=config.num_channels, config=config).to(device)
+    model = UNetLatentSpace(in_channels=config.num_channels, config=config).to(device)
     optimizer = optim.Adam(model.parameters(), lr=1e-4)
-
-    #### DIFFUSERS/AUTOENCODERKL #######
-    vae = AutoencoderKL.from_pretrained("stabilityai/sd-vae-ft-mse").to(device)
-    vae.eval()
-    for p in vae.parameters():
-        p.requires_grad = False
 
     for epoch in range(config.n_epochs):
         with tqdm(train_dl, desc="Training") as pbar:
@@ -73,18 +67,13 @@ def train_test_model(config):
                 for batch_idx, (x0, _) in enumerate(pbar):                                 # (B, 1, 28, 28)
                     B, C, H, W = x0.shape
                     x0 = x0.to(device)                                                     # (B, 1, 28, 28)
-                    with torch.no_grad():
-                        # Posterior is DiagonalGaussianDistribution
-                        posterior = vae.encode(x0).latent_dist
-                        x0_latent = posterior.mean * vae.config.scaling_factor             # (B, 4, H//8, W//8)
 
-                    xT = torch.randn_like(x0_latent)                                       # (B, 1, 28, 28)
-                    t = torch.rand(x0.size(0), 1, device=device)                           # (B, 1)
-                    xt = (1 - t[:, :, None, None]) * x0_latent + t[:, :, None, None] * xT  # (B, 1, 28, 28)
-                    v = xT - x0_latent                                                     # (B, 1, 28, 28)
+                    xT = torch.randn_like(x0)                                              # (B, 1, 28, 28)
+                    t = torch.rand(x0.size(0), 1, device=device)                                  # (B, 1)
+                    xt = (1 - t[:, :, None, None]) * x0 + t[:, :, None, None] * xT         # (B, 1, 28, 28)
+                    v = xT - x0                                                            # (B, 1, 28, 28)
 
                     v_pred = model(xt, t)
-                    # v_pred = model(xt)
 
                     loss = ((v_pred - v)**2).mean()
 

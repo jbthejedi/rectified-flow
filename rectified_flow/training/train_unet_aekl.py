@@ -30,7 +30,7 @@ def train_test_model(config):
 
     # Training loop
     img_shape = (config.num_channels, config.image_size, config.image_size)
-    model = UNet(in_channels=config.num_channels, config=config).to(device)
+    model = UNetLatentSpace(in_channels=config.num_channels, config=config).to(device)
     optimizer = optim.Adam(model.parameters(), lr=1e-4)
 
     #### DIFFUSERS/AUTOENCODERKL #######

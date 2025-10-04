@@ -38,7 +38,7 @@ def train_test_model(config):
 
     # Training loop
     img_shape = (config.num_channels, config.image_size, config.image_size)
-    model = UNet(in_channels=config.num_channels, time_dim=128, p_dropout=None).to(device)
+    model = UNetLatentSpace(in_channels=config.num_channels, time_dim=128, p_dropout=None).to(device)
     ema = EMA(model, beta=0.9995)
     optimizer = optim.Adam(model.parameters(), lr=1e-4)
 
