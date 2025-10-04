@@ -1,39 +1,36 @@
 dataset_type: celeba
 
-name: local-overfit-unet-pixel-${dataset_type}
-data_root: /Users/justinbarry/projects/data/
-# data_root: /Users/justinbarry/projects/flickr30k_entities
-env: local
+name: server-overfit-unet-pixel-${dataset_type}
+data_root: /workspace/data
+download_data: False
+env: server
 
-
-n_epochs: 10
+n_epochs: 300
 
 image_size: 128
 batch_size: 8
 normalize_shape: 0.5
+time_dim: 128
 
-num_channels: 4
-latent_dims: 128
-latent_channels: 4
+num_channels: 3
 num_groups: 32
 
 num_workers: 4
 
 artifact_name: jbarry-team/${project}/${name}-best-model:latest
-download_data: False
 # wandb_mode: disabled
 wandb_mode: online
 
 save_model: False
-test_model: True
+test_model: False
 train_model: True
 
 compile: False
 do_small_sample: True
-sample_size_k: 8
+sample_size_k: 128
 
 summary: False
 
-inference_peek_num: 1
-local_visualization: True
+inference_peek_num: 3
+local_visualization: False
 write_inference_samples: True

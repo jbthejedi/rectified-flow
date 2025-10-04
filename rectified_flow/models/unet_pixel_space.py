@@ -17,31 +17,34 @@ class Upsample(nn.Module):
         self.conv = nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1)
     def forward(self, x): return self.conv(self.up(x))
 
-
 class ResnetBlock(nn.Module):
-    def __init__(self, in_ch, out_ch, time_dim, p_dropout=None, groups=32):
+    def __init__(self, in_ch, out_ch, time_dim, p_dropout=None):
         super().__init__()
-        self.in_ch, self.out_ch = in_ch, out_ch
-        self.skip = (nn.Conv2d(in_ch, out_ch, 1) if in_ch != out_ch else nn.Identity())
+        self.skip = nn.Conv2d(in_ch, out_ch, 1) if in_ch != out_ch else nn.Identity()
 
-        # PreAct v2 style: Norm -> SiLU -> Conv
-        g1 = min(groups, out_ch)            # keep groups <= C and dividing C
-        g1 = max(1, max([g for g in (32,16,8,4,2,1) if out_ch % g == 0]))
-        self.norm1 = nn.GroupNorm(g1, in_ch)
+        # PreAct
+        self.norm1 = nn.GroupNorm(self.__gn_groups(in_ch),  in_ch)   # <- use in_ch here
         self.conv1 = nn.Conv2d(in_ch, out_ch, 3, padding=1)
 
         self.time_proj = nn.Linear(time_dim, out_ch)
         self.dropout = nn.Dropout(p_dropout) if p_dropout else nn.Identity()
 
-        g2 = max(1, max([g for g in (32,16,8,4,2,1) if out_ch % g == 0]))
-        self.norm2 = nn.GroupNorm(g2, out_ch)
+        self.norm2 = nn.GroupNorm(self.__gn_groups(out_ch), out_ch)  # <- use out_ch here
         self.conv2 = nn.Conv2d(out_ch, out_ch, 3, padding=1)
 
+
+    def __gn_groups(self, C: int, cap: int = 32) -> int:
+        # pick the largest divisor of C from a safe set; fallback to 1
+        for g in (32, 16, 8, 4, 2, 1):
+            if C % g == 0 and g <= cap:
+                return g
+        return 1
+
+
     def forward(self, x, t_emb):
-        h = self.conv1(F.silu(self.norm1(x)))
-        # add time embedding after first conv, before second
-        t = self.time_proj(t_emb)[:, :, None, None]
-        h = h + t
+        norm1 = self.norm1(x)
+        h = self.conv1(F.silu(norm1))
+        h = h + self.time_proj(t_emb)[:, :, None, None]
         h = self.conv2(F.silu(self.norm2(h)))
         h = self.dropout(h)
         return F.silu(h + self.skip(x))
