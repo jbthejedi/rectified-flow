@@ -1,6 +1,6 @@
 dataset_type: celeba
 
-name: baseline-joint-it-local-${dataset_type}
+name: local-overfit-unet-pixel-${dataset_type}
 data_root: /Users/justinbarry/projects/data/
 # data_root: /Users/justinbarry/projects/flickr30k_entities
 env: local
@@ -37,6 +37,3 @@ summary: False
 inference_peek_num: 1
 local_visualization: True
 write_inference_samples: True
-
-do_round_trip: False
-do_decode_latent: False

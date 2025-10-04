@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import math
 
+
 class SinusoidalTimeEmbedding(nn.Module):
     def __init__(self, dim: int):
         super().__init__()
@@ -23,13 +24,13 @@ class SinusoidalTimeEmbedding(nn.Module):
 
 
 class TimeEmbedding(nn.Module):
-    def __init__(self, time_dim: int = 128):
+    def __init__(self, dim: int = 128):
         super().__init__()
-        self.sin_emb = SinusoidalTimeEmbedding(time_dim) # (B, time_dim)
+        self.sin_emb = SinusoidalTimeEmbedding(dim) # (B, time_dim)
         self.mlp = nn.Sequential(                   # (B, time_dim)
-            nn.Linear(time_dim, time_dim),
+            nn.Linear(dim, dim),
             nn.SiLU(),
-            nn.Linear(time_dim, time_dim),
+            nn.Linear(dim, dim),
         )
 
     def forward(self, t: torch.Tensor) -> torch.Tensor:

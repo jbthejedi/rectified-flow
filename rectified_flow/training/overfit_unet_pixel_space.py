@@ -48,62 +48,55 @@ def train_test_model(config):
     for p in aekl.parameters():
         p.requires_grad = False
 
-    if config.do_round_trip is True:
-        round_trip(aekl, train_dl)
-        print("Round Trip Finished")
-    if config.do_decode_latent is True:
-        decode_latent_sample(aekl, config)
-        print("Decode Latent Finished")
-    else:
-        log_dict = {}
-        for epoch in range(config.n_epochs):
-            log_dict["epoch"] = epoch
-            model.train()
-            with tqdm(train_dl, desc="Training") as pbar:
-                train_loss = 0.0
-                for x0, _ in pbar:                                 # (B, 1, 28, 28)
-                    B, C, H, W = x0.shape
-                    x0 = x0.to(device)                                                     # (B, 1, 28, 28)
-                    with torch.no_grad():
-                        posterior = aekl.encode(x0).latent_dist
-                        x0_latent = posterior.mean * aekl.config.scaling_factor             # (B, 4, H//8, W//8)
+    log_dict = {}
+    for epoch in range(config.n_epochs):
+        log_dict["epoch"] = epoch
+        model.train()
+        with tqdm(train_dl, desc="Training") as pbar:
+            train_loss = 0.0
+            for x0, _ in pbar:                                 # (B, 1, 28, 28)
+                B, C, H, W = x0.shape
+                x0 = x0.to(device)                                                     # (B, 1, 28, 28)
+                with torch.no_grad():
+                    posterior = aekl.encode(x0).latent_dist
+                    x0_latent = posterior.mean * aekl.config.scaling_factor             # (B, 4, H//8, W//8)
 
-                    xT = torch.randn_like(x0_latent)                                       # (B, 1, 28, 28)
-                    t = torch.rand(x0.size(0), 1, device=device)                           # (B, 1)
-                    xt = (1 - t[:, :, None, None]) * x0_latent + t[:, :, None, None] * xT  # (B, 1, 28, 28)
-                    v = xT - x0_latent                                                     # (B, 1, 28, 28)
-                    v_pred = model(xt, t)
+                xT = torch.randn_like(x0_latent)                                       # (B, 1, 28, 28)
+                t = torch.rand(x0.size(0), 1, device=device)                           # (B, 1)
+                xt = (1 - t[:, :, None, None]) * x0_latent + t[:, :, None, None] * xT  # (B, 1, 28, 28)
+                v = xT - x0_latent                                                     # (B, 1, 28, 28)
+                v_pred = model(xt, t)
 
-                    with torch.no_grad():
-                        v_mag  = v.abs().mean().item()
-                        vp_mag = v_pred.abs().mean().item()
-                    tqdm.write(f"|v*|={v_mag:.3f} |v̂|={vp_mag:.3f}")
+                with torch.no_grad():
+                    v_mag  = v.abs().mean().item()
+                    vp_mag = v_pred.abs().mean().item()
+                tqdm.write(f"|v*|={v_mag:.3f} |v̂|={vp_mag:.3f}")
 
-                    loss = ((v_pred - v)**2).mean()
+                loss = ((v_pred - v)**2).mean()
 
-                    optimizer.zero_grad()
-                    loss.backward()
-                    torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
-                    optimizer.step()
-                    ema.update(model)
-                    train_loss += loss.item()
+                optimizer.zero_grad()
+                loss.backward()
+                torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+                optimizer.step()
+                ema.update(model)
+                train_loss += loss.item()
 
-                train_loss /= len(train_dl)
-                tqdm.write(f"Epoch {epoch}: Train Loss = {train_loss:.4f}")
+            train_loss /= len(train_dl)
+            tqdm.write(f"Epoch {epoch}: Train Loss = {train_loss:.4f}")
 
-            if (epoch % config.inference_peek_num == 0):
-                flow, mush = sample_batch_vae(ema, aekl, batch_size=4, num_steps=300, img_shape=img_shape)
+        if (epoch % config.inference_peek_num == 0):
+            flow, mush = sample_batch_vae(ema, aekl, batch_size=4, num_steps=300, img_shape=img_shape)
 
-                if config.local_visualization is True:
-                    show_flow_vs_mush(flow, mush)
+            if config.local_visualization is True:
+                show_flow_vs_mush(flow, mush)
 
-                if config.write_inference_samples is True:
-                    log_flow_vs_mush_wandb(mush, flow, originals=None, nrow=4, step=epoch)
-                    tqdm.write("Writing image grid")
+            if config.write_inference_samples is True:
+                log_flow_vs_mush_wandb(mush, flow, originals=None, nrow=4, step=epoch)
+                tqdm.write("Writing image grid")
 
-            log_dict["train/loss"] = train_loss
-            wandb.log(log_dict, step=epoch, commit=True)
-        tqdm.write("Done Training")
+        log_dict["train/loss"] = train_loss
+        wandb.log(log_dict, step=epoch, commit=True)
+    tqdm.write("Done Training")
 
 
 def to_grid(imgs, nrow=4):
@@ -184,7 +177,6 @@ def show_flow_vs_mush(flow, mush, originals=None, nrow=4, title_left="No flow (m
         plt.axis("off")
     plt.tight_layout()
     plt.show()
-
 
 
 class EMA:

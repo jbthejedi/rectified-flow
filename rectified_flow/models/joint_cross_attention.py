@@ -15,7 +15,7 @@ class SimpleCrossAttentionModel(nn.Module):
         self.txt_proj = nn.Linear(txt_dim, hidden)
 
 
-        self.time_emb = TimeEmbedding(time_dim=128)
+        self.time_emb = TimeEmbedding(dim=128)
         self.time_proj = nn.Linear(time_dim, hidden)
     
     def forward(self, x_img_t : torch.Tensor, x_txt_t, t):

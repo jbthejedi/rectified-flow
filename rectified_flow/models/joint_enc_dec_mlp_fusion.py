@@ -26,7 +26,7 @@ class JointEncDecMLPFusion(nn.Module):
             nn.Linear(hidden, hidden)
         )
 
-        self.time_emb = TimeEmbedding(time_dim=128)
+        self.time_emb = TimeEmbedding(dim=128)
         self.time_proj = nn.Linear(time_dim, p_hidden)
 
         self.img_head = nn.Linear(hidden, H*W*img_dim)

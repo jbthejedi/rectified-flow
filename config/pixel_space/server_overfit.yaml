@@ -1,6 +1,6 @@
 dataset_type: celeba
 
-name: overfit-wide-unet-server-${dataset_type}
+name: server-overfit-unet-pixel-${dataset_type}
 data_root: /workspace/data
 download_data: False
 env: server
@@ -33,8 +33,5 @@ sample_size_k: 128
 summary: False
 
 inference_peek_num: 3
-local_visualization: True
+local_visualization: False
 write_inference_samples: True
-
-do_round_trip: False
-do_decode_latent: False
