@@ -186,3 +186,5 @@ langvae_tokenizer_ckpt/
 outputs/
 token.json
 hello.txt
+
+langvae_tokenizer_ckpt/
