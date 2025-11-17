@@ -108,6 +108,9 @@ def train_test_model(config):
     log_dict["epoch"] = epoch
     tqdm.write(f"Epoch {epoch}/{config.n_epochs}")
 
+    ################################
+    ########## Training ##########
+    ################################
     model.train()
     with tqdm(train_dl, desc="Training") as pbar:
       train_epoch_loss = 0.0
@@ -129,6 +132,9 @@ def train_test_model(config):
       train_epoch_loss /= len(train_dl)
     tqdm.write(f"Epoch {epoch}: Train Loss = {train_epoch_loss:.4f}")
 
+    ################################
+    ########## Validation ##########
+    ################################
     model.eval()
     with torch.no_grad():
       with tqdm(val_dl, desc="Validation") as pbar:

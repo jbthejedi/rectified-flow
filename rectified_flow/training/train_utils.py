@@ -671,7 +671,8 @@ def encode_prompt_clip_lhs(text_enc, tok, device):
 
 
 def compute_data_tc_clip_cfg(model, text_enc,
-                             images: torch.Tensor, token_ids: torch.Tensor, attn_mask: torch.Tensor,
+                             images: torch.Tensor, token_ids: torch.Tensor,
+                             attn_mask: torch.Tensor,
                              device, p_uncond=0.15):
   images = images.to(device, non_blocking=True)
   attn_mask = attn_mask.to(device, non_blocking=True)

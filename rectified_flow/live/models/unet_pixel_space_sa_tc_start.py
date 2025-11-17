@@ -105,6 +105,18 @@ class UNetPixelSpace(nn.Module):
     u1 = self.dec1(torch.cat([u2, d1], dim=1), t_emb)           # (B, 128, 32, 32)
     return self.image_out_proj(u1)                                    # (B, 3, 32, 32)
 
+def main():
+  B, C, H, W = 4, 3, 32, 32
+  xt = torch.rand(B, C, H, W, device='cpu')
+  t = torch.rand(B, device='cpu')
+  time_dim=16
+  model = UNetPixelSpace(in_ch=C, time_dim=time_dim, p_dropout=None)
+  out = model(xt, t)
+  print(f"out.shape {out.shape}")
+
+if __name__ == "__main__":
+  main()
+
 
 class UNetPixelSpaceTC(nn.Module):
   
@@ -135,7 +147,7 @@ class UNetPixelSpaceTC(nn.Module):
 
     self.image_out_proj = nn.Conv2d(128, in_ch, 1)
 
-  def forward(self, x_img_t, txt_toks, t, attn_mask, is_uncond):
+  def forward(self, x_img_t, txt_toks, t):
     """
     xt.shape (B, C, H, W)
     t.shape (B)

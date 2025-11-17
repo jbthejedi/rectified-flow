@@ -13,7 +13,7 @@ from torch.utils.data import DataLoader, random_split, Subset
 from tqdm import tqdm
 
 from rectified_flow.data.datamodule_recover import ProjectData
-from rectified_flow.live.models.unet_pixel_space_live import UNetPixelSpace
+from rectified_flow.live.models.unet_pixel_space_live import UNetJoint
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
@@ -57,7 +57,7 @@ def train_test_model(config):
   print(f"val len {len(val_dl)}")
 
   # Model / Optimizer
-  model = UNetPixelSpace(in_ch=config.num_channels,
+  model = UNetJoint(in_ch=config.num_channels,
                          time_dim=config.time_dim, p_dropout=0.1).to(device)
   optimizer = torch.optim.AdamW(model.parameters(), lr=config.lr)
 

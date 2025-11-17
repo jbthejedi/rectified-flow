@@ -84,14 +84,16 @@ class MHSA(nn.Module):
 
 
 class AttnBlock(nn.Module):
+
   def __init__(self, c, heads=4):
     super().__init__()
     self.attn = MHSA(c, heads=heads)  # your MHSA from earlier
+
   def forward(self, x):
     return self.attn(x)
 
 
-class UnetLayer(nn.Module):
+class DoubleResnetBlock(nn.Module):
 
   def __init__(self, in_ch, out_ch, time_dim, p_dropout=None):
     super().__init__()
@@ -190,36 +192,36 @@ class UNetPixelJointCAFiLM(nn.Module):
     )
 
     # Down path (keep blocks shape-preserving; downsample between levels)
-    self.enc1 = UnetLayer(in_ch, 128, time_dim, p_dropout)
+    self.enc1 = DoubleResnetBlock(in_ch, 128, time_dim, p_dropout)
     # self.ds1 = Downsample(128)
 
-    self.enc2 = UnetLayer(128, 256, time_dim, p_dropout)
+    self.enc2 = DoubleResnetBlock(128, 256, time_dim, p_dropout)
     self.ds2 = Downsample(256)
     self.enc_sa2 = AttnBlock(c=256, heads=8)
 
-    self.enc3 = UnetLayer(256, 512, time_dim, p_dropout)
+    self.enc3 = DoubleResnetBlock(256, 512, time_dim, p_dropout)
     self.ds3 = Downsample(512)
     self.enc_sa3 = AttnBlock(c=512, heads=8)
 
-    self.enc4 = UnetLayer(512, 1024, time_dim, p_dropout)
+    self.enc4 = DoubleResnetBlock(512, 1024, time_dim, p_dropout)
     self.ds4 = Downsample(1024)
 
     self.mid = ResnetBlock(1024, 1024, time_dim, p_dropout)
 
     # Up path (upsample + concat + block)
     self.us4 = Upsample(1024)
-    self.dec4 = UnetLayer(1024 + 1024, 1024, time_dim, p_dropout)
+    self.dec4 = DoubleResnetBlock(1024 + 1024, 1024, time_dim, p_dropout)
     self.dec_sa4 = AttnBlock(c=1024, heads=8)
 
     self.us3 = Upsample(1024)
-    self.dec3 = UnetLayer(1024 + 512, 512, time_dim, p_dropout)
+    self.dec3 = DoubleResnetBlock(1024 + 512, 512, time_dim, p_dropout)
     self.dec_sa3 = AttnBlock(c=512, heads=8)
 
     self.us2 = Upsample(512)
-    self.dec2 = UnetLayer(512 + 256, 256, time_dim, p_dropout)
+    self.dec2 = DoubleResnetBlock(512 + 256, 256, time_dim, p_dropout)
 
     self.us1 = Upsample(256)
-    self.dec1 = UnetLayer(256 + 128, 128, time_dim, p_dropout)
+    self.dec1 = DoubleResnetBlock(256 + 128, 128, time_dim, p_dropout)
 
     # Text Conditioning
     img_dim = 1024
@@ -285,7 +287,7 @@ class UNetPixelJointCAFiLM(nn.Module):
 
     ##### Cross Attention #####
     img_toks = m.flatten(2).permute(0, 2, 1)                    # (, 4*4, 1024)
-    m = self.cross_attn(img_toks, txt_for_img, attn_mask)          # (, 4*4, 102)
+    m = self.cross_attn(img_toks, txt_for_img, attn_mask)          # (, 4*4, 1024)
     m = m.permute(0, 2, 1).view(B, C_m, H_m, W_m)
 
 
@@ -300,6 +302,6 @@ class UNetPixelJointCAFiLM(nn.Module):
     v_img_pred = self.image_out(u1)
 
     # Text velocity head
-    img_ctx = m.mean(dim=[2,3])
+    img_ctx = m.mean(dim=[2,3]) # (B, C)
     v_txt_pred = self.txt_head(x_txt_t, img_ctx)
     return v_img_pred, v_txt_pred

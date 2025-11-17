@@ -26,7 +26,7 @@ class Upsample(nn.Module):
 
 
 class ResnetBlock(nn.Module):
-  
+
   def __init__(self, in_ch, out_ch, time_dim, p_dropout=None):
     super().__init__()
     self.skip = nn.Conv2d(in_ch, out_ch, 1) if in_ch != out_ch else nn.Identity()
@@ -45,7 +45,7 @@ class ResnetBlock(nn.Module):
       if C % g == 0:
         return g
     return 1
-        
+
   def forward(self, xt, t_emb):
     """
     t_emb.shape = (B, time_dim)
@@ -58,7 +58,7 @@ class ResnetBlock(nn.Module):
 
 
 class UNetPixelSpace(nn.Module):
-  
+
   def __init__(self, in_ch, time_dim, p_dropout=None):
     super().__init__()
     self.time_emb = TimeEmbedding(time_dim)
@@ -96,56 +96,7 @@ class UNetPixelSpace(nn.Module):
     d2 = self.enc2(d1, t_emb)                                   # (B, 256, 32, 32)
     d3 = self.enc3(self.down2(d2), t_emb)                       # (B, 512, 16, 16)
     d4 = self.enc4(self.down3(d3), t_emb)                       # (B, 1024, 8, 8)
-    
-    m = self.mid(self.down4(d4), t_emb)                         # (B, 1024, 4, 4)
 
-    u4 = self.dec4(torch.cat([self.up4(m), d4], dim=1), t_emb)  # (B, 1024, 8, 8)
-    u3 = self.dec3(torch.cat([self.up3(u4), d3], dim=1), t_emb) # (B, 512, 16, 16)
-    u2 = self.dec2(torch.cat([self.up2(u3), d2], dim=1), t_emb) # (B, 256, 32, 32)
-    u1 = self.dec1(torch.cat([u2, d1], dim=1), t_emb)           # (B, 128, 32, 32)
-    return self.image_out_proj(u1)                                    # (B, 3, 32, 32)
-
-
-class UNetPixelSpaceTC(nn.Module):
-  
-  def __init__(self, in_ch, time_dim, p_dropout=None):
-    super().__init__()
-    self.time_emb = TimeEmbedding(time_dim)
-
-    # Encoder: 128 -> 256 -> 512 -> 1024
-    self.enc1 = ResnetBlock(in_ch, 128, time_dim, p_dropout)
-    self.enc2 = ResnetBlock(128, 256, time_dim, p_dropout)
-    self.down2 = Downsample(256)
-    self.enc3 = ResnetBlock(256, 512, time_dim, p_dropout)
-    self.down3 = Downsample(512)
-    self.enc4 = ResnetBlock(512, 1024, time_dim, p_dropout)
-    self.down4 = Downsample(1024)
-
-    # Middle: 1024 -> 1024
-    self.mid = ResnetBlock(1024, 1024, time_dim, p_dropout)
-
-    # Decoder: 1024 -> 512 -> 256 -> 128
-    self.up4 = Upsample(1024)
-    self.dec4 = ResnetBlock(1024 + 1024, 1024, time_dim, p_dropout)
-    self.up3 = Upsample(1024)
-    self.dec3 = ResnetBlock(1024 + 512, 512, time_dim, p_dropout)
-    self.up2 = Upsample(512)
-    self.dec2 = ResnetBlock(512 + 256, 256, time_dim, p_dropout)
-    self.dec1 = ResnetBlock(256 + 128, 128, time_dim, p_dropout)
-
-    self.image_out_proj = nn.Conv2d(128, in_ch, 1)
-
-  def forward(self, x_img_t, txt_toks, t, attn_mask, is_uncond):
-    """
-    xt.shape (B, C, H, W)
-    t.shape (B)
-    """
-    t_emb = self.time_emb(t)
-    d1 = self.enc1(x_img_t, t_emb)                                   # (B, 128, 32, 32)
-    d2 = self.enc2(d1, t_emb)                                   # (B, 256, 32, 32)
-    d3 = self.enc3(self.down2(d2), t_emb)                       # (B, 512, 16, 16)
-    d4 = self.enc4(self.down3(d3), t_emb)                       # (B, 1024, 8, 8)
-    
     m = self.mid(self.down4(d4), t_emb)                         # (B, 1024, 4, 4)
 
     u4 = self.dec4(torch.cat([self.up4(m), d4], dim=1), t_emb)  # (B, 1024, 8, 8)
@@ -163,6 +114,7 @@ def main():
   model = UNetPixelSpace(in_ch=C, time_dim=time_dim, p_dropout=None)
   out = model(xt, t)
   print(f"out.shape {out.shape}")
+
 
 if __name__ == "__main__":
   main()

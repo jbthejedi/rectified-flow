@@ -57,9 +57,18 @@ class ResnetBlock(nn.Module):
     return F.silu(h + self.skip(xt))
 
 
-class UNetPixelSpace(nn.Module):
+class TxtVelocityHead(nn.Module):
+  def __init__(self, txt_dim=512, img_dim=1024, hidden=1024):
+    super().__init__()
+    self.seq = nn.Linear(txt_dim, txt_dim)
   
-  def __init__(self, in_ch, time_dim, p_dropout=None):
+  def forward(self, x):
+    return self.seq(x)
+
+
+class UNetJoint(nn.Module):
+  
+  def __init__(self, in_ch=3, time_dim=128, txt_dim=512, p_dropout=None):
     super().__init__()
     self.time_emb = TimeEmbedding(time_dim)
 
@@ -85,14 +94,15 @@ class UNetPixelSpace(nn.Module):
     self.dec1 = ResnetBlock(256 + 128, 128, time_dim, p_dropout)
 
     self.image_out_proj = nn.Conv2d(128, in_ch, 1)
+    self.text_out_proj = TxtVelocityHead(txt_dim=txt_dim)
 
-  def forward(self, xt, t):
+  def forward(self, x_img_t, x_txt_t, t_img, t_txt):
     """
     xt.shape (B, C, H, W)
     t.shape (B)
     """
-    t_emb = self.time_emb(t)
-    d1 = self.enc1(xt, t_emb)                                   # (B, 128, 32, 32)
+    t_emb = self.time_emb(t_img)
+    d1 = self.enc1(x_img_t, t_emb)                              # (B, 128, 32, 32)
     d2 = self.enc2(d1, t_emb)                                   # (B, 256, 32, 32)
     d3 = self.enc3(self.down2(d2), t_emb)                       # (B, 512, 16, 16)
     d4 = self.enc4(self.down3(d3), t_emb)                       # (B, 1024, 8, 8)
@@ -103,66 +113,24 @@ class UNetPixelSpace(nn.Module):
     u3 = self.dec3(torch.cat([self.up3(u4), d3], dim=1), t_emb) # (B, 512, 16, 16)
     u2 = self.dec2(torch.cat([self.up2(u3), d2], dim=1), t_emb) # (B, 256, 32, 32)
     u1 = self.dec1(torch.cat([u2, d1], dim=1), t_emb)           # (B, 128, 32, 32)
-    return self.image_out_proj(u1)                                    # (B, 3, 32, 32)
-
-
-class UNetPixelSpaceTC(nn.Module):
-  
-  def __init__(self, in_ch, time_dim, p_dropout=None):
-    super().__init__()
-    self.time_emb = TimeEmbedding(time_dim)
-
-    # Encoder: 128 -> 256 -> 512 -> 1024
-    self.enc1 = ResnetBlock(in_ch, 128, time_dim, p_dropout)
-    self.enc2 = ResnetBlock(128, 256, time_dim, p_dropout)
-    self.down2 = Downsample(256)
-    self.enc3 = ResnetBlock(256, 512, time_dim, p_dropout)
-    self.down3 = Downsample(512)
-    self.enc4 = ResnetBlock(512, 1024, time_dim, p_dropout)
-    self.down4 = Downsample(1024)
-
-    # Middle: 1024 -> 1024
-    self.mid = ResnetBlock(1024, 1024, time_dim, p_dropout)
-
-    # Decoder: 1024 -> 512 -> 256 -> 128
-    self.up4 = Upsample(1024)
-    self.dec4 = ResnetBlock(1024 + 1024, 1024, time_dim, p_dropout)
-    self.up3 = Upsample(1024)
-    self.dec3 = ResnetBlock(1024 + 512, 512, time_dim, p_dropout)
-    self.up2 = Upsample(512)
-    self.dec2 = ResnetBlock(512 + 256, 256, time_dim, p_dropout)
-    self.dec1 = ResnetBlock(256 + 128, 128, time_dim, p_dropout)
-
-    self.image_out_proj = nn.Conv2d(128, in_ch, 1)
-
-  def forward(self, x_img_t, txt_toks, t, attn_mask, is_uncond):
-    """
-    xt.shape (B, C, H, W)
-    t.shape (B)
-    """
-    t_emb = self.time_emb(t)
-    d1 = self.enc1(x_img_t, t_emb)                                   # (B, 128, 32, 32)
-    d2 = self.enc2(d1, t_emb)                                   # (B, 256, 32, 32)
-    d3 = self.enc3(self.down2(d2), t_emb)                       # (B, 512, 16, 16)
-    d4 = self.enc4(self.down3(d3), t_emb)                       # (B, 1024, 8, 8)
-    
-    m = self.mid(self.down4(d4), t_emb)                         # (B, 1024, 4, 4)
-
-    u4 = self.dec4(torch.cat([self.up4(m), d4], dim=1), t_emb)  # (B, 1024, 8, 8)
-    u3 = self.dec3(torch.cat([self.up3(u4), d3], dim=1), t_emb) # (B, 512, 16, 16)
-    u2 = self.dec2(torch.cat([self.up2(u3), d2], dim=1), t_emb) # (B, 256, 32, 32)
-    u1 = self.dec1(torch.cat([u2, d1], dim=1), t_emb)           # (B, 128, 32, 32)
-    return self.image_out_proj(u1)                                    # (B, 3, 32, 32)
+    img_out = self.image_out_proj(u1)                           # (B, 3, 32, 32)
+    txt_out = self.text_out_proj(x_txt_t)                       # (B, L, 512)
+    return img_out, txt_out
 
 
 def main():
   B, C, H, W = 4, 3, 32, 32
-  xt = torch.rand(B, C, H, W, device='cpu')
-  t = torch.rand(B, device='cpu')
-  time_dim=16
-  model = UNetPixelSpace(in_ch=C, time_dim=time_dim, p_dropout=None)
-  out = model(xt, t)
-  print(f"out.shape {out.shape}")
+  L, TH = 7, 64
+  x_img_t = torch.rand(B, C, H, W, device='cpu')
+  t_img = torch.rand(B, device='cpu')
+  x_txt_t = torch.rand(B, L, TH, device='cpu')
+  t_txt = torch.rand(B, device='cpu')
+  time_dim = 16
+  model = UNetJoint(in_ch=C, time_dim=time_dim, txt_dim=TH, p_dropout=None)
+  v_hat_img, v_hat_txt = model(x_img_t, x_txt_t, t_img, t_txt)
+  print(f"v_hat_img.shape {v_hat_img.shape}")
+  print(f"v_hat_txt.shape {v_hat_txt.shape}")
+
 
 if __name__ == "__main__":
   main()

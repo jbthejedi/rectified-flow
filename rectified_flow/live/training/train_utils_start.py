@@ -14,9 +14,11 @@ from tqdm import tqdm
 from pprint import pp
 from rectified_flow.models.unet_pixel_space_sa import *
 from langvae import LangVAE
+from rectified_flow.live.models.unet_pixel_space_joint_live import UNetPixelSpaceJoint
 from transformers import CLIPTextModel, CLIPTokenizer
 from transformers import AutoTokenizer
 from rectified_flow.encdec.flant5 import FlanT5TextEncoderDecoder
+
 
 
 def load_model(model, version: str, config):
@@ -78,7 +80,7 @@ def show_samples(samples, nrow=4, title="RF (pixel-space)"):
   plt.show()
 
 
-def log_samples_wandb(samples, nrow=4, step=None, prefix="samples/"):
+def log_samples_wandb(samples, nrow=4, prefix="samples/"):
   grid = to_grid_std_norm(samples, nrow=nrow)
   payload = {f"{prefix}flow": wandb.Image(grid, caption="RF (pixel-space)")}
   wandb.log(payload)
@@ -99,4 +101,34 @@ def load_config_01(path, env="local"):
 
 def print_config_vars(config):
   pp(OmegaConf.to_container(config))
+
+
+def compute_data(images, model, device):
+  x0 = images.to(device)                   # (B, C, H, W)
+  x1 = torch.randn_like(x0, device=device) # (B, C, H, W)
+  B = x0.size(0)
+  t = torch.rand(B, device=device)         # (B)
+
+  # t[:, None, None, None].shape = (B, 1, 1, 1)
+  xt = (1 - t[:, None, None, None]) * x0 + t[:, None, None, None] * x1 # (B, C, H, W)
+  v_star = x1 - x0
+  v_pred = model(xt, t)
+  return v_star, v_pred
+
+
+@torch.no_grad()
+def sample_batch_pixels(model, batch_size=1, num_steps=100, img_shape=(3, 128, 128), device="cpu"):
+  """
+  Inference
+  """
+  tqdm.write("Performing Inference")
+  B, C, H, W = batch_size, *img_shape
+  x = torch.randn(B, C, H, W, device=device) # (B, C, H, W)
+  t_vals = torch.linspace(1, 0, steps=num_steps, device=device)
+  # dt = 1.0 / num_steps
+  dts = t_vals[1:] - t_vals[:-1]
+  for i in tqdm(range(len(t_vals) - 1)):
+    x = x + model(x, t_vals[i].repeat(B)) * dts[i]
+  return x
+
 
